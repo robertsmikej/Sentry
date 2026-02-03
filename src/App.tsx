@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { Scanner } from './components/Scanner';
 import { History } from './components/History';
 import { Settings } from './components/Settings';
+import { EncounterList } from './components/EncounterList';
 import { SyncStatus } from './components/SyncStatus';
 import { useAutoSync } from './hooks/useAutoSync';
+import { useOfflinePrep } from './hooks/useOfflinePrep';
 
-type Tab = 'scan' | 'history' | 'settings';
+type Tab = 'scan' | 'history' | 'encounters' | 'settings';
 
 const THEME_STORAGE_KEY = 'plate-reader-theme';
 const DRAWER_ID = 'main-drawer';
@@ -28,10 +30,24 @@ function App() {
     console.error('Auto-sync error:', error);
   }, []);
 
+  const handleInitialSyncComplete = useCallback(() => {
+    setAutoSyncMessage('Data synced from Google Sheets');
+    setTimeout(() => setAutoSyncMessage(null), 3000);
+  }, []);
+
+  const handleInitialSyncError = useCallback((error: string) => {
+    console.error('Initial sync error:', error);
+  }, []);
+
   useAutoSync({
     onSyncComplete: handleAutoSyncComplete,
     onSyncError: handleAutoSyncError,
+    onInitialSyncComplete: handleInitialSyncComplete,
+    onInitialSyncError: handleInitialSyncError,
   });
+
+  // Auto-download Tesseract.js files for offline use on first load
+  useOfflinePrep();
 
   // Apply theme when it changes
   useEffect(() => {
@@ -56,17 +72,17 @@ function App() {
 
       {/* Main Page Content */}
       <div className="drawer-content flex flex-col min-h-screen">
-        {/* Header */}
-        <header className="navbar bg-base-200 px-4 shadow-sm sticky top-0 z-40">
+        {/* Header - bold dark with red accent */}
+        <header className="navbar bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-4 shadow-lg sticky top-0 z-40 text-white border-b-2 border-red-600">
           <div className="flex-none">
-            <label htmlFor={DRAWER_ID} className="btn btn-ghost btn-circle btn-sm drawer-button">
+            <label htmlFor={DRAWER_ID} className="btn btn-ghost btn-circle btn-sm drawer-button text-white hover:bg-white/20">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
               </svg>
             </label>
           </div>
           <div className="flex-1 ml-2">
-            <h1 className="text-lg font-bold">Plate Reader</h1>
+            <h1 className="text-lg font-bold tracking-wide">Plate Reader</h1>
           </div>
           <div className="flex-none">
             <SyncStatus />
@@ -77,6 +93,7 @@ function App() {
         <main className="flex-1 overflow-auto">
           {activeTab === 'scan' && <Scanner />}
           {activeTab === 'history' && <History />}
+          {activeTab === 'encounters' && <EncounterList />}
           {activeTab === 'settings' && <Settings />}
         </main>
 
@@ -93,16 +110,21 @@ function App() {
       {/* Slide-out Drawer */}
       <div className="drawer-side z-50">
         <label htmlFor={DRAWER_ID} aria-label="close sidebar" className="drawer-overlay"></label>
-        <div className="menu bg-base-200 min-h-full w-72 p-4">
-          {/* Drawer Header */}
-          <div className="flex items-center justify-between mb-6 px-2">
-            <h2 className="text-xl font-bold">Menu</h2>
-            <label htmlFor={DRAWER_ID} className="btn btn-ghost btn-circle btn-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-            </label>
+        <div className="menu bg-base-200 min-h-full w-72 p-0">
+          {/* Drawer Header - bold dark with red accent */}
+          <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-4 text-white border-b-2 border-red-600">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold tracking-wide">Plate Reader</h2>
+              <label htmlFor={DRAWER_ID} className="btn btn-ghost btn-circle btn-sm text-white hover:bg-white/20">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </label>
+            </div>
+            <p className="text-sm text-white/70 mt-1">Quick plate lookup</p>
           </div>
+
+          <div className="p-4">
 
           {/* Navigation */}
           <ul className="space-y-1">
@@ -126,6 +148,18 @@ function App() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>
                 History
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => handleNavClick('encounters')}
+                className={`flex items-center gap-3 w-full ${activeTab === 'encounters' ? 'active' : ''}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                </svg>
+                Encounters
               </button>
             </li>
             <li>
@@ -181,6 +215,7 @@ function App() {
             <p className="text-xs text-base-content/50 text-center">
               Plate Reader PWA
             </p>
+          </div>
           </div>
         </div>
       </div>

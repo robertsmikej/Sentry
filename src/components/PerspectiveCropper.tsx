@@ -416,7 +416,7 @@ export function PerspectiveCropper({
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 w-full max-w-md">
+    <div className="flex flex-col items-center gap-2 w-full max-w-md">
       <div className="text-center">
         <p className="text-sm text-base-content/60">
           Drag corners to match plate edges
@@ -476,7 +476,7 @@ export function PerspectiveCropper({
         <button
           onClick={handleRedetect}
           disabled={!imageLoaded || isDetecting}
-          className="btn btn-sm btn-ghost flex-1"
+          className="btn btn-ghost flex-1 min-h-[44px]"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -484,7 +484,7 @@ export function PerspectiveCropper({
             viewBox="0 0 24 24"
             strokeWidth={1.5}
             stroke="currentColor"
-            className="w-4 h-4"
+            className="w-5 h-5"
           >
             <path
               strokeLinecap="round"
@@ -497,7 +497,7 @@ export function PerspectiveCropper({
         <button
           onClick={handleReset}
           disabled={!imageLoaded}
-          className="btn btn-sm btn-ghost flex-1"
+          className="btn btn-ghost flex-1 min-h-[44px]"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -505,7 +505,7 @@ export function PerspectiveCropper({
             viewBox="0 0 24 24"
             strokeWidth={1.5}
             stroke="currentColor"
-            className="w-4 h-4"
+            className="w-5 h-5"
           >
             <path
               strokeLinecap="round"
@@ -519,7 +519,7 @@ export function PerspectiveCropper({
           <button
             onClick={onSimpleCrop}
             disabled={!imageLoaded}
-            className="btn btn-sm btn-ghost flex-1"
+            className="btn btn-ghost flex-1 min-h-[44px]"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -527,7 +527,7 @@ export function PerspectiveCropper({
               viewBox="0 0 24 24"
               strokeWidth={1.5}
               stroke="currentColor"
-              className="w-4 h-4"
+              className="w-5 h-5"
             >
               <path
                 strokeLinecap="round"
@@ -541,14 +541,14 @@ export function PerspectiveCropper({
       </div>
 
       {/* Action buttons */}
-      <div className="flex gap-4 w-full">
-        <button onClick={onCancel} className="btn btn-outline flex-1">
+      <div className="flex gap-2 w-full">
+        <button onClick={onCancel} className="btn btn-outline btn-lg flex-1 min-h-[56px]">
           Cancel
         </button>
         <button
           onClick={handleConfirm}
           disabled={!imageLoaded || isDetecting}
-          className="btn btn-primary flex-1"
+          className="btn btn-primary btn-lg flex-1 min-h-[56px]"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

@@ -23,7 +23,39 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
+        runtimeCaching: [
+          {
+            // Cache Tesseract.js worker and core files from CDN
+            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/npm\/tesseract\.js/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'tesseract-js-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            // Cache Tesseract.js language data (traineddata files)
+            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/npm\/tesseract\.js-data/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'tesseract-lang-cache',
+              expiration: {
+                maxEntries: 5,
+                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
       }
     })
   ],

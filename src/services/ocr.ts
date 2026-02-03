@@ -1,5 +1,5 @@
 import Tesseract, {PSM} from 'tesseract.js'
-import type {OCRSettings, PSMMode} from '../types'
+import type {OCRSettings, PSMMode, RecognitionSettings} from '../types'
 
 // Set to true to open processed image in new tab for debugging
 const DEBUG_SHOW_PROCESSED_IMAGE_IN_NEW_TAB = false
@@ -12,12 +12,20 @@ const MAX_IMAGE_DIMENSION = 10000
 const DARK_THRESHOLD = 70
 
 const OCR_SETTINGS_KEY = 'plate-reader-ocr-settings'
+const RECOGNITION_SETTINGS_KEY = 'plate-reader-recognition-settings'
 
 export const DEFAULT_OCR_SETTINGS: OCRSettings = {
   psm: '7', // Single uniform block of text
   charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
   preprocessImage: true, // Using contrast boost preprocessing
   contrastLevel: 1.5 // Higher contrast to make dark colored text darker
+}
+
+export const DEFAULT_RECOGNITION_SETTINGS: RecognitionSettings = {
+  method: 'ocr', // Default to local OCR
+  geminiApiKey: '',
+  geminiMaxImageSize: 1536, // Default max dimension - increased for photos taken farther from plates
+  geminiAutoScan: false // Show preview by default so user can crop if needed
 }
 
 export const PSM_DESCRIPTIONS: Record<PSMMode, string> = {
@@ -49,6 +57,22 @@ export function getOCRSettings(): OCRSettings {
 
 export function saveOCRSettings(settings: OCRSettings): void {
   localStorage.setItem(OCR_SETTINGS_KEY, JSON.stringify(settings))
+}
+
+export function getRecognitionSettings(): RecognitionSettings {
+  try {
+    const stored = localStorage.getItem(RECOGNITION_SETTINGS_KEY)
+    if (stored) {
+      return {...DEFAULT_RECOGNITION_SETTINGS, ...JSON.parse(stored)}
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return DEFAULT_RECOGNITION_SETTINGS
+}
+
+export function saveRecognitionSettings(settings: RecognitionSettings): void {
+  localStorage.setItem(RECOGNITION_SETTINGS_KEY, JSON.stringify(settings))
 }
 
 /**

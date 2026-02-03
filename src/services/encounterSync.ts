@@ -1,39 +1,46 @@
-import { getUnsyncedEntries, markAsSynced, getSettings, saveSettings } from './storage';
-import type { LookupEntry } from '../types';
+import { getUnsyncedEncounters, markEncountersAsSynced, getSettings, saveSettings } from './storage';
+import type { Encounter } from '../types';
 
-export interface WriteSyncResult {
+export interface EncounterSyncResult {
   success: boolean;
   count: number;
   error?: string;
 }
 
-export async function syncToSheet(writeUrl: string): Promise<WriteSyncResult> {
-  const unsyncedEntries = await getUnsyncedEntries();
+export async function syncEncountersToSheet(writeUrl: string): Promise<EncounterSyncResult> {
+  const unsyncedEncounters = await getUnsyncedEncounters();
 
-  console.log('[WriteSync] Starting sync check...');
-  console.log('[WriteSync] Unsynced entries found:', unsyncedEntries.length);
+  console.log('[EncounterSync] Starting sync check...');
+  console.log('[EncounterSync] Unsynced encounters found:', unsyncedEncounters.length);
 
-  if (unsyncedEntries.length === 0) {
-    console.log('[WriteSync] No entries to sync, skipping.');
+  if (unsyncedEncounters.length === 0) {
+    console.log('[EncounterSync] No encounters to sync, skipping.');
     return { success: true, count: 0 };
   }
 
-  // Prepare entries for the Apps Script
+  // Prepare encounters for the Apps Script
   const payload = {
-    entries: unsyncedEntries.map((entry: LookupEntry) => ({
-      code: entry.code,
-      name: entry.name || '',
-      description: entry.description || '',
-      seenCount: entry.seenCount || 0,
-      experience: entry.experience || 'neutral',
-      lastSeen: entry.lastSeen ? new Date(entry.lastSeen).toISOString() : '',
-      incrementSeen: entry.pendingSeenIncrement || false, // Only increment seenCount if this is true
+    encounters: unsyncedEncounters.map((encounter: Encounter) => ({
+      id: encounter.id,
+      plateCode: encounter.plateCode,
+      timestamp: new Date(encounter.timestamp).toISOString(),
+      // Location data
+      latitude: encounter.location?.latitude ?? '',
+      longitude: encounter.location?.longitude ?? '',
+      accuracy: encounter.location?.accuracy ?? '',
+      locationLabel: encounter.locationLabel || '',
+      // User metadata
+      notes: encounter.notes || '',
+      tags: encounter.tags?.join(', ') || '', // Comma-separated for Google Sheets
+      experience: encounter.experience || 'neutral',
+      // Link to scan
+      scanId: encounter.scanId || '',
     })),
   };
 
-  console.log('[WriteSync] Sending to Google Sheets:');
-  console.log('[WriteSync] URL:', writeUrl);
-  console.log('[WriteSync] Payload:', JSON.stringify(payload, null, 2));
+  console.log('[EncounterSync] Sending to Google Sheets:');
+  console.log('[EncounterSync] URL:', writeUrl);
+  console.log('[EncounterSync] Payload:', JSON.stringify(payload, null, 2));
 
   try {
     // With no-cors mode, we can't read the response body
@@ -48,45 +55,53 @@ export async function syncToSheet(writeUrl: string): Promise<WriteSyncResult> {
     });
 
     // Log what we can from the opaque response
-    console.log('[WriteSync] Response received:');
-    console.log('[WriteSync] - Type:', response.type);
-    console.log('[WriteSync] - Status:', response.status);
-    console.log('[WriteSync] - OK:', response.ok);
-    console.log('[WriteSync] Note: With no-cors mode, response body is opaque and cannot be read.');
+    console.log('[EncounterSync] Response received:');
+    console.log('[EncounterSync] - Type:', response.type);
+    console.log('[EncounterSync] - Status:', response.status);
+    console.log('[EncounterSync] Note: With no-cors mode, response body is opaque and cannot be read.');
 
-    // Mark entries as synced
-    const codes = unsyncedEntries.map((e: LookupEntry) => e.code);
-    console.log('[WriteSync] Marking entries as synced:', codes);
-    await markAsSynced(codes);
+    // Mark encounters as synced
+    const ids = unsyncedEncounters.map((e: Encounter) => e.id);
+    console.log('[EncounterSync] Marking encounters as synced:', ids.length);
+    await markEncountersAsSynced(ids);
 
-    // Update last write sync time in settings
+    // Update last encounter sync time in settings
     const settings = await getSettings();
     if (settings) {
       await saveSettings({
         ...settings,
-        lastWriteSyncTime: new Date(),
+        lastEncounterSyncTime: new Date(),
       });
     }
 
-    console.log('[WriteSync] Sync completed successfully for', unsyncedEntries.length, 'entries');
-    return { success: true, count: unsyncedEntries.length };
+    console.log('[EncounterSync] Sync completed successfully for', unsyncedEncounters.length, 'encounters');
+    return { success: true, count: unsyncedEncounters.length };
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Sync failed';
-    console.error('[WriteSync] Sync FAILED:', message);
-    console.error('[WriteSync] Error details:', err);
+    const message = err instanceof Error ? err.message : 'Encounter sync failed';
+    console.error('[EncounterSync] Sync FAILED:', message);
+    console.error('[EncounterSync] Error details:', err);
     return { success: false, count: 0, error: message };
   }
 }
 
-// Apps Script code that users need to paste into their Google Sheet
-export const APPS_SCRIPT_CODE = `
+// Apps Script code that users need to add to their Google Sheet for encounter syncing
+// This should be added as a SEPARATE function in the same Apps Script project
+export const ENCOUNTER_APPS_SCRIPT_CODE = `
+// ============================================
+// ENCOUNTER SYNC - Add this to your Apps Script
+// ============================================
+// This handles POST requests for encounter data.
+// It writes to a sheet named "Encounters" (creates it if needed).
+
 function doPost(e) {
   const data = JSON.parse(e.postData.contents);
 
+  // Check if this is an encounter sync or plate sync
   if (data.encounters) {
     return handleEncounterSync(data);
   }
 
+  // Otherwise handle as plate sync (existing logic)
   return handlePlateSync(data);
 }
 
@@ -115,10 +130,13 @@ function handleEncounterSync(data) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ensureEncountersSheet(ss);
 
+  // Process each encounter
   data.encounters.forEach(enc => {
+    // Check if encounter already exists (by ID)
     const existingData = sheet.getDataRange().getValues();
     const rowIndex = existingData.findIndex(row => row[0] === enc.id);
 
+    // Parse timestamp for separate date/time columns
     const timestamp = new Date(enc.timestamp);
     const dateStr = timestamp.toLocaleDateString();
     const timeStr = timestamp.toLocaleTimeString();
@@ -140,8 +158,10 @@ function handleEncounterSync(data) {
     ];
 
     if (rowIndex > 0) {
+      // Update existing row
       sheet.getRange(rowIndex + 1, 1, 1, rowData.length).setValues([rowData]);
     } else {
+      // Append new row
       sheet.appendRow(rowData);
     }
   });
@@ -191,11 +211,13 @@ function handlePlateSync(data) {
   // Get or create "Plates" sheet (rename Sheet1 if needed)
   let sheet = ss.getSheetByName('Plates');
   if (!sheet) {
+    // Check if Sheet1 exists and rename it
     const sheet1 = ss.getSheetByName('Sheet1');
     if (sheet1) {
       sheet1.setName('Plates');
       sheet = sheet1;
     } else {
+      // Use the active sheet and rename if it's the default name
       sheet = ss.getActiveSheet();
       if (sheet.getName() === 'Sheet1') {
         sheet.setName('Plates');
@@ -205,11 +227,12 @@ function handlePlateSync(data) {
 
   const headers = ensurePlatesHeaders(sheet);
 
+  // Process each entry
   data.entries.forEach(entry => {
     const rows = sheet.getDataRange().getValues();
     const rowIndex = rows.findIndex(row => row[0] === entry.code);
-    let targetRow;
 
+    let targetRow;
     if (rowIndex > 0) {
       const currentSeenCount = parseInt(rows[rowIndex][3], 10) || 0;
       const newSeenCount = entry.incrementSeen ? currentSeenCount + 1 : currentSeenCount;

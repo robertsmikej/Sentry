@@ -67,7 +67,9 @@ export async function syncFromSheet(sheetUrl: string): Promise<{ count: number }
   const entries = parseCSV(csv);
 
   await setLookupEntries(entries);
+  const currentSettings = await getSettings();
   await saveSettings({
+    ...currentSettings,
     sheetUrl,
     lastSyncTime: new Date(),
   });

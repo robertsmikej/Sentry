@@ -24,13 +24,16 @@ interface ImageCropperProps {
   onCropComplete: (canvas: HTMLCanvasElement) => void
   onCancel: () => void
   onPerspective?: (canvas: HTMLCanvasElement) => void
+  /** Override default aspect ratio (width/height). Default is 3 for wide plates, use ~1.2 for more square */
+  defaultAspectRatio?: number
 }
 
 export function ImageCropper({
   imageDataUrl,
   onCropComplete,
   onCancel,
-  onPerspective
+  onPerspective,
+  defaultAspectRatio = DEFAULT_ASPECT_RATIO
 }: ImageCropperProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
@@ -85,7 +88,7 @@ export function ImageCropper({
 
     // Initialize crop to a plate-shaped rectangle (wide and short)
     const cropWidth = displayWidth * (1 - DEFAULT_HORIZONTAL_MARGIN * 2)
-    let cropHeight = cropWidth / DEFAULT_ASPECT_RATIO
+    let cropHeight = cropWidth / defaultAspectRatio
 
     // Make sure the crop height doesn't exceed max percentage of image height
     const maxCropHeight = displayHeight * DEFAULT_MAX_HEIGHT_PERCENT
@@ -105,7 +108,7 @@ export function ImageCropper({
     })
 
     setImageLoaded(true)
-  }, [])
+  }, [defaultAspectRatio])
 
   // Recalculate on resize
   useEffect(() => {
@@ -425,7 +428,7 @@ export function ImageCropper({
       0 - displaySize.height) / 2
 
   return (
-    <div className="flex flex-col items-center gap-4 w-full max-w-md">
+    <div className="flex flex-col items-center gap-2 w-full max-w-md">
       <p className="text-sm text-base-content/60">Drag to adjust crop area</p>
 
       <div
@@ -539,7 +542,7 @@ export function ImageCropper({
         <button
           onClick={handlePerspective}
           disabled={!imageLoaded}
-          className="btn btn-sm btn-ghost w-full"
+          className="btn btn-ghost w-full min-h-[44px]"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -547,7 +550,7 @@ export function ImageCropper({
             viewBox="0 0 24 24"
             strokeWidth={1.5}
             stroke="currentColor"
-            className="w-4 h-4"
+            className="w-5 h-5"
           >
             <path
               strokeLinecap="round"
@@ -559,14 +562,14 @@ export function ImageCropper({
         </button>
       )}
 
-      <div className="flex gap-3 w-full">
-        <button onClick={onCancel} className="btn btn-outline flex-1">
+      <div className="flex gap-2 w-full">
+        <button onClick={onCancel} className="btn btn-outline btn-lg flex-1 min-h-[56px]">
           Cancel
         </button>
         <button
           onClick={handleCropConfirm}
           disabled={!imageLoaded}
-          className="btn btn-primary flex-1"
+          className="btn btn-primary btn-lg flex-1 min-h-[56px]"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

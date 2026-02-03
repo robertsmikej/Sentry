@@ -7,21 +7,40 @@ import {
   saveOCRSettings,
   DEFAULT_OCR_SETTINGS,
   PSM_DESCRIPTIONS,
+  getRecognitionSettings,
+  saveRecognitionSettings,
+  DEFAULT_RECOGNITION_SETTINGS,
 } from '../services/ocr';
-import type { OCRSettings, PSMMode } from '../types';
+import { validateGeminiApiKey } from '../services/gemini';
+import type { OCRSettings, PSMMode, RecognitionSettings, RecognitionMethod } from '../types';
 
 export function Settings() {
   const [sheetUrl, setSheetUrl] = useState('');
   const [writeUrl, setWriteUrl] = useState('');
+  const [showEditFields, setShowEditFields] = useState(false);
   const [showScript, setShowScript] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [writeToast, setWriteToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | null>(null);
   const initialLoadDone = useRef(false);
+  const writeToastTimerRef = useRef<number | null>(null);
 
   // OCR Settings
   const [ocrSettings, setOcrSettings] = useState<OCRSettings>(DEFAULT_OCR_SETTINGS);
   const [ocrSaveStatus, setOcrSaveStatus] = useState<'saved' | 'saving' | null>(null);
   const ocrInitialLoadDone = useRef(false);
+
+  // Recognition Settings (OCR vs Gemini)
+  const [recognitionSettings, setRecognitionSettings] = useState<RecognitionSettings>(DEFAULT_RECOGNITION_SETTINGS);
+  const [recognitionSaveStatus, setRecognitionSaveStatus] = useState<'saved' | 'saving' | null>(null);
+  const [apiKeyValidating, setApiKeyValidating] = useState(false);
+  const [apiKeyValid, setApiKeyValid] = useState<boolean | null>(null);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const recognitionInitialLoadDone = useRef(false);
+
+  // Location Settings
+  const [locationEnabled, setLocationEnabled] = useState(false);
+  const [locationPrecision, setLocationPrecision] = useState<'exact' | 'neighborhood' | 'city'>('neighborhood');
 
   const {
     entries,
@@ -32,9 +51,19 @@ export function Settings() {
     syncError,
     writeSyncError,
     pendingSyncCount,
-    sync,
+    pendingPlateCount,
+    pendingEncounterCount,
+    fullSync,
     writeSync,
   } = useLookup();
+
+  const writeSyncStatus =
+    !writeUrl ? 'Add Apps Script URL to enable' :
+    isWriteSyncing ? 'Syncing…' :
+    pendingSyncCount === 0 ? 'No pending items' :
+    'Ready to sync';
+  const writeSyncLabel =
+    pendingSyncCount > 0 ? `Sync to Sheet (${pendingSyncCount})` : 'Sync to Sheet';
 
   // Load settings on mount
   useEffect(() => {
@@ -44,6 +73,15 @@ export function Settings() {
       }
       if (settings?.writeUrl) {
         setWriteUrl(settings.writeUrl);
+      }
+      if (settings?.showEditFields !== undefined) {
+        setShowEditFields(settings.showEditFields);
+      }
+      if (settings?.locationEnabled !== undefined) {
+        setLocationEnabled(settings.locationEnabled);
+      }
+      if (settings?.locationPrecision !== undefined) {
+        setLocationPrecision(settings.locationPrecision);
       }
       // Mark initial load as complete after a small delay
       setTimeout(() => {
@@ -57,10 +95,23 @@ export function Settings() {
     setTimeout(() => {
       ocrInitialLoadDone.current = true;
     }, 100);
+
+    // Load Recognition settings
+    const storedRecognitionSettings = getRecognitionSettings();
+    setRecognitionSettings(storedRecognitionSettings);
+    setTimeout(() => {
+      recognitionInitialLoadDone.current = true;
+    }, 100);
   }, []);
 
-  // Auto-save URLs when they change (with debounce)
-  const saveUrls = useCallback(async (newSheetUrl: string, newWriteUrl: string) => {
+  // Auto-save settings when they change (with debounce)
+  const saveUserSettings = useCallback(async (
+    newSheetUrl: string,
+    newWriteUrl: string,
+    newShowEditFields: boolean,
+    newLocationEnabled: boolean,
+    newLocationPrecision: 'exact' | 'neighborhood' | 'city'
+  ) => {
     if (!initialLoadDone.current) return;
 
     setSaveStatus('saving');
@@ -68,8 +119,13 @@ export function Settings() {
     await saveSettings({
       sheetUrl: newSheetUrl,
       writeUrl: newWriteUrl,
+      showEditFields: newShowEditFields,
+      locationEnabled: newLocationEnabled,
+      locationPrecision: newLocationPrecision,
       lastSyncTime: currentSettings?.lastSyncTime,
       lastWriteSyncTime: currentSettings?.lastWriteSyncTime,
+      lastEncounterSyncTime: currentSettings?.lastEncounterSyncTime,
+      encounterWriteUrl: currentSettings?.encounterWriteUrl,
     });
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus(null), 1500);
@@ -80,11 +136,11 @@ export function Settings() {
     if (!initialLoadDone.current) return;
 
     const timeoutId = setTimeout(() => {
-      saveUrls(sheetUrl, writeUrl);
+      saveUserSettings(sheetUrl, writeUrl, showEditFields, locationEnabled, locationPrecision);
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [sheetUrl, writeUrl, saveUrls]);
+  }, [sheetUrl, writeUrl, showEditFields, locationEnabled, locationPrecision, saveUserSettings]);
 
   // Auto-save OCR settings when they change
   useEffect(() => {
@@ -100,6 +156,20 @@ export function Settings() {
     return () => clearTimeout(timeoutId);
   }, [ocrSettings]);
 
+  // Auto-save Recognition settings when they change
+  useEffect(() => {
+    if (!recognitionInitialLoadDone.current) return;
+
+    setRecognitionSaveStatus('saving');
+    const timeoutId = setTimeout(() => {
+      saveRecognitionSettings(recognitionSettings);
+      setRecognitionSaveStatus('saved');
+      setTimeout(() => setRecognitionSaveStatus(null), 1500);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [recognitionSettings]);
+
   const updateOcrSetting = <K extends keyof OCRSettings>(key: K, value: OCRSettings[K]) => {
     setOcrSettings(prev => ({ ...prev, [key]: value }));
   };
@@ -108,10 +178,42 @@ export function Settings() {
     setOcrSettings(DEFAULT_OCR_SETTINGS);
   };
 
+  const updateRecognitionMethod = (method: RecognitionMethod) => {
+    setRecognitionSettings(prev => ({ ...prev, method }));
+  };
+
+  const updateGeminiApiKey = (apiKey: string) => {
+    setRecognitionSettings(prev => ({ ...prev, geminiApiKey: apiKey }));
+    // Reset validation state when key changes
+    setApiKeyValid(null);
+  };
+
+  const updateGeminiMaxImageSize = (size: number) => {
+    setRecognitionSettings(prev => ({ ...prev, geminiMaxImageSize: size }));
+  };
+
+  const updateGeminiAutoScan = (autoScan: boolean) => {
+    setRecognitionSettings(prev => ({ ...prev, geminiAutoScan: autoScan }));
+  };
+
+  const handleValidateApiKey = async () => {
+    const key = recognitionSettings.geminiApiKey;
+    if (!key) {
+      setApiKeyValid(false);
+      return;
+    }
+    setApiKeyValidating(true);
+    setApiKeyValid(null);
+    const isValid = await validateGeminiApiKey(key);
+    setApiKeyValid(isValid);
+    setApiKeyValidating(false);
+  };
+
   const handleSync = async () => {
     if (!sheetUrl) return;
     try {
-      await sync(sheetUrl);
+      // Push local changes first, then pull from Google
+      await fullSync(sheetUrl, writeUrl || undefined);
     } catch {
       // Error is handled by useLookup
     }
@@ -119,7 +221,24 @@ export function Settings() {
 
   const handleWriteSync = async () => {
     if (!writeUrl) return;
-    await writeSync(writeUrl);
+    const result = await writeSync(writeUrl);
+    if (writeToastTimerRef.current) {
+      window.clearTimeout(writeToastTimerRef.current);
+    }
+
+    if (result.success) {
+      if (result.count > 0) {
+        setWriteToast({ type: 'success', message: `Synced ${result.count} item${result.count !== 1 ? 's' : ''} to Sheets` });
+      } else {
+        setWriteToast({ type: 'info', message: 'No pending items to sync' });
+      }
+    } else {
+      setWriteToast({ type: 'error', message: 'Sync failed — see details above' });
+    }
+
+    writeToastTimerRef.current = window.setTimeout(() => {
+      setWriteToast(null);
+    }, 3000);
   };
 
   const handleCopyScript = async () => {
@@ -147,6 +266,19 @@ export function Settings() {
 
   return (
     <div className="p-4 space-y-6">
+      {writeToast && (
+        <div className="toast toast-bottom toast-center z-50">
+          <div className={`alert ${
+            writeToast.type === 'success'
+              ? 'alert-success'
+              : writeToast.type === 'error'
+                ? 'alert-error'
+                : 'alert-info'
+          }`}>
+            <span>{writeToast.message}</span>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">Settings</h2>
         {saveStatus && (
@@ -168,10 +300,10 @@ export function Settings() {
         )}
       </div>
 
-      {/* Read Sync Card */}
+      {/* Full Sync Card */}
       <div className="card bg-base-200">
         <div className="card-body">
-          <h3 className="card-title text-base">Read from Google Sheets</h3>
+          <h3 className="card-title text-base">Sync with Google Sheets</h3>
 
           <div className="form-control">
             <label className="label">
@@ -195,7 +327,7 @@ export function Settings() {
           <div className="flex justify-between items-center mt-2">
             <div className="text-sm text-base-content/60">
               <p>Entries: {entries.length}</p>
-              <p>Last read: {formatDate(lastSync)}</p>
+              <p>Last sync: {formatDate(lastSync)}</p>
             </div>
             <button
               onClick={handleSync}
@@ -205,14 +337,14 @@ export function Settings() {
               {isSyncing ? (
                 <>
                   <span className="loading loading-spinner loading-sm"></span>
-                  Reading...
+                  Syncing...
                 </>
               ) : (
                 <>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
                   </svg>
-                  Sync from Sheet
+                  Sync All
                 </>
               )}
             </button>
@@ -251,29 +383,258 @@ export function Settings() {
 
           <div className="flex justify-between items-center mt-2">
             <div className="text-sm text-base-content/60">
-              <p>Pending: {pendingSyncCount} plate{pendingSyncCount !== 1 ? 's' : ''}</p>
+              {pendingSyncCount > 0 && (
+                <p>
+                  Plates: {pendingPlateCount} • Encounters: {pendingEncounterCount}
+                </p>
+              )}
               <p>Last write: {formatDate(lastWriteSync)}</p>
             </div>
+            <div className="flex flex-col items-end gap-1">
+              <button
+                onClick={handleWriteSync}
+                disabled={!writeUrl || isWriteSyncing || pendingSyncCount === 0}
+                className="btn btn-secondary btn-sm"
+              >
+                {isWriteSyncing ? (
+                  <>
+                    <span className="loading loading-spinner loading-sm"></span>
+                    Writing...
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                    </svg>
+                    {writeSyncLabel}
+                  </>
+                )}
+              </button>
+              <span className="text-xs text-base-content/60">{writeSyncStatus}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recognition Method Card */}
+      <div className="card bg-base-200">
+        <div className="card-body">
+          <div className="flex items-center justify-between">
+            <h3 className="card-title text-base">Recognition Method</h3>
+            {recognitionSaveStatus && (
+              <span className="text-xs text-base-content/60 flex items-center gap-1">
+                {recognitionSaveStatus === 'saving' ? (
+                  <>
+                    <span className="loading loading-spinner loading-xs"></span>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3 text-success">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                    Saved
+                  </>
+                )}
+              </span>
+            )}
+          </div>
+
+          <p className="text-sm text-base-content/60 mb-2">
+            Choose how license plates are recognized from images.
+          </p>
+
+          {/* Method Toggle */}
+          <div className="flex gap-2 mb-4">
             <button
-              onClick={handleWriteSync}
-              disabled={!writeUrl || isWriteSyncing || pendingSyncCount === 0}
-              className="btn btn-secondary btn-sm"
+              onClick={() => updateRecognitionMethod('ocr')}
+              className={`btn btn-sm flex-1 ${recognitionSettings.method === 'ocr' ? 'btn-primary' : 'btn-outline'}`}
             >
-              {isWriteSyncing ? (
-                <>
-                  <span className="loading loading-spinner loading-sm"></span>
-                  Writing...
-                </>
-              ) : (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-                  </svg>
-                  Sync to Sheet ({pendingSyncCount})
-                </>
-              )}
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+              </svg>
+              Local OCR
+            </button>
+            <button
+              onClick={() => updateRecognitionMethod('gemini')}
+              className={`btn btn-sm flex-1 ${recognitionSettings.method === 'gemini' ? 'btn-primary' : 'btn-outline'}`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+              </svg>
+              Gemini AI
             </button>
           </div>
+
+          {/* Method Descriptions */}
+          <div className={`p-3 rounded-lg mb-4 ${recognitionSettings.method === 'ocr' ? 'bg-primary/10' : 'bg-base-300'}`}>
+            {recognitionSettings.method === 'ocr' ? (
+              <div className="text-sm">
+                <strong>Local OCR (Tesseract)</strong>
+                <p className="text-base-content/70 mt-1">
+                  Uses on-device text recognition. Works offline, no API key needed. Good for clear, well-lit plates.
+                </p>
+              </div>
+            ) : (
+              <div className="text-sm">
+                <strong>Gemini AI (Google)</strong>
+                <p className="text-base-content/70 mt-1">
+                  Uses Google's AI vision model for recognition. Requires internet and API key. Better accuracy for challenging images.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Gemini API Key Input (shown when Gemini is selected) */}
+          {recognitionSettings.method === 'gemini' && (
+            <div className="space-y-3">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Gemini API Key</span>
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type={showApiKey ? 'text' : 'password'}
+                      placeholder="Enter your Gemini API key"
+                      value={recognitionSettings.geminiApiKey}
+                      onChange={(e) => updateGeminiApiKey(e.target.value)}
+                      className={`input input-bordered w-full pr-10 ${apiKeyValid === true ? 'input-success' : apiKeyValid === false ? 'input-error' : ''}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 btn btn-ghost btn-xs btn-circle"
+                      aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+                    >
+                      {showApiKey ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleValidateApiKey}
+                    disabled={!recognitionSettings.geminiApiKey || apiKeyValidating}
+                    className="btn btn-outline btn-sm"
+                  >
+                    {apiKeyValidating ? (
+                      <span className="loading loading-spinner loading-xs"></span>
+                    ) : (
+                      'Test'
+                    )}
+                  </button>
+                </div>
+                {apiKeyValid !== null && (
+                  <label className="label">
+                    <span className={`label-text-alt whitespace-normal break-words ${apiKeyValid ? 'text-success' : 'text-error'}`}>
+                      {apiKeyValid ? 'API key is valid' : 'Invalid API key'}
+                    </span>
+                  </label>
+                )}
+              </div>
+
+              {/* Max Image Size Setting */}
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Max Image Size</span>
+                  <span className="label-text-alt whitespace-normal break-words">{recognitionSettings.geminiMaxImageSize}px</span>
+                </label>
+                <input
+                  type="range"
+                  min="512"
+                  max="4096"
+                  step="256"
+                  value={recognitionSettings.geminiMaxImageSize}
+                  onChange={(e) => updateGeminiMaxImageSize(parseInt(e.target.value, 10))}
+                  className="range range-primary range-sm"
+                />
+                <div className="flex justify-between text-xs text-base-content/50 px-1 mt-1">
+                  <span>512</span>
+                  <span>1536</span>
+                  <span>2560</span>
+                  <span>4096</span>
+                </div>
+                {/* Quick preset buttons */}
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <button
+                    onClick={() => updateGeminiMaxImageSize(1024)}
+                    className={`btn btn-xs ${recognitionSettings.geminiMaxImageSize === 1024 ? 'btn-primary' : 'btn-outline'}`}
+                  >
+                    1024 (Fast)
+                  </button>
+                  <button
+                    onClick={() => updateGeminiMaxImageSize(1536)}
+                    className={`btn btn-xs ${recognitionSettings.geminiMaxImageSize === 1536 ? 'btn-primary' : 'btn-outline'}`}
+                  >
+                    1536 (Default)
+                  </button>
+                  <button
+                    onClick={() => updateGeminiMaxImageSize(2048)}
+                    className={`btn btn-xs ${recognitionSettings.geminiMaxImageSize === 2048 ? 'btn-primary' : 'btn-outline'}`}
+                  >
+                    2048 (Quality)
+                  </button>
+                  <button
+                    onClick={() => updateGeminiMaxImageSize(4096)}
+                    className={`btn btn-xs ${recognitionSettings.geminiMaxImageSize === 4096 ? 'btn-primary' : 'btn-outline'}`}
+                  >
+                    4096 (Max)
+                  </button>
+                </div>
+                <label className="label">
+                  <span className="label-text-alt text-base-content/50 whitespace-normal break-words">
+                    Larger = better for distant plates, but slower uploads. Smaller = faster processing.
+                  </span>
+                </label>
+              </div>
+
+              {/* Auto-Scan Toggle */}
+              <div className="form-control">
+                <label className="label cursor-pointer justify-start gap-3 items-start flex-wrap whitespace-normal">
+                  <input
+                    type="checkbox"
+                    checked={recognitionSettings.geminiAutoScan}
+                    onChange={(e) => updateGeminiAutoScan(e.target.checked)}
+                    className="toggle toggle-primary"
+                  />
+                  <div className="min-w-0">
+                    <span className="label-text font-medium">Auto-scan images</span>
+                    <p className="text-xs text-base-content/50 mt-0.5 break-words">
+                      {recognitionSettings.geminiAutoScan
+                        ? 'Images are sent to AI immediately after capture'
+                        : 'Preview image first with option to crop before scanning'}
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="alert alert-info text-xs">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div>
+                  <p>Get a free API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="link">Google AI Studio</a></p>
+                  <p className="mt-1 text-base-content/60">Your key is stored locally on this device only.</p>
+                </div>
+              </div>
+
+              {!navigator.onLine && (
+                <div className="alert alert-warning text-xs">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                  </svg>
+                  <span>You're offline. Gemini requires internet - will fall back to local OCR.</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -330,7 +691,7 @@ export function Settings() {
               ))}
             </select>
             <label className="label">
-              <span className="label-text-alt text-base-content/50">
+              <span className="label-text-alt text-base-content/50 whitespace-normal break-words">
                 PSM 7 (single line) or PSM 8 (single word) often work best for plates
               </span>
             </label>
@@ -349,7 +710,7 @@ export function Settings() {
               className="input input-bordered w-full font-mono text-sm"
             />
             <label className="label">
-              <span className="label-text-alt text-base-content/50">
+              <span className="label-text-alt text-base-content/50 whitespace-normal break-words">
                 Restrict to specific characters. Empty = all characters allowed.
               </span>
             </label>
@@ -379,16 +740,16 @@ export function Settings() {
 
           {/* Preprocess Toggle */}
           <div className="form-control">
-            <label className="label cursor-pointer justify-start gap-3">
+            <label className="label cursor-pointer justify-start gap-3 items-start flex-wrap whitespace-normal">
               <input
                 type="checkbox"
                 checked={ocrSettings.preprocessImage}
                 onChange={(e) => updateOcrSetting('preprocessImage', e.target.checked)}
                 className="checkbox checkbox-primary"
               />
-              <div>
+              <div className="min-w-0">
                 <span className="label-text">Preprocess Image</span>
-                <p className="text-xs text-base-content/50">
+                <p className="text-xs text-base-content/50 break-words">
                   Convert to grayscale and increase contrast before OCR
                 </p>
               </div>
@@ -586,6 +947,83 @@ export function Settings() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Location Tracking */}
+      <div className="card bg-base-200">
+        <div className="card-body">
+          <h3 className="card-title text-base">Location Tracking</h3>
+          <p className="text-sm text-base-content/60 mb-3">
+            Capture GPS location when scanning plates to track where encounters occur.
+          </p>
+
+          <div className="form-control">
+            <label className="label cursor-pointer justify-start gap-3 items-start flex-wrap whitespace-normal">
+              <input
+                type="checkbox"
+                checked={locationEnabled}
+                onChange={(e) => setLocationEnabled(e.target.checked)}
+                className="toggle toggle-primary"
+              />
+              <div className="min-w-0">
+                <span className="label-text font-medium">Enable location capture</span>
+                <p className="text-xs text-base-content/50 mt-0.5 break-words">
+                  {locationEnabled
+                    ? 'Location will be captured with each scan (requires permission)'
+                    : 'Location tracking is disabled'}
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {locationEnabled && (
+            <div className="form-control mt-3">
+              <label className="label">
+                <span className="label-text">Location precision</span>
+              </label>
+              <select
+                className="select select-bordered select-sm"
+                value={locationPrecision}
+                onChange={(e) => setLocationPrecision(e.target.value as 'exact' | 'neighborhood' | 'city')}
+              >
+                <option value="exact">Exact (full GPS precision)</option>
+                <option value="neighborhood">Neighborhood (~100m accuracy)</option>
+                <option value="city">City (~1km accuracy)</option>
+              </select>
+              <label className="label">
+                <span className="label-text-alt text-base-content/50 whitespace-normal break-words">
+                  Lower precision protects privacy but reduces detail
+                </span>
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Display Options */}
+      <div className="card bg-base-200">
+        <div className="card-body">
+          <h3 className="card-title text-base">Display Options</h3>
+
+          <div className="form-control">
+            <label className="label cursor-pointer justify-start gap-3 items-start flex-wrap whitespace-normal">
+              <input
+                type="checkbox"
+                checked={showEditFields}
+                onChange={(e) => setShowEditFields(e.target.checked)}
+                className="toggle toggle-primary"
+              />
+              <div className="min-w-0">
+                <span className="label-text font-medium">Show edit fields on scan results</span>
+                <p className="text-xs text-base-content/50 mt-0.5 break-words">
+                  {showEditFields
+                    ? 'Name, notes, and experience fields are shown after scanning'
+                    : 'Only the plate number and match status are shown after scanning'}
+                </p>
+              </div>
+            </label>
           </div>
         </div>
       </div>

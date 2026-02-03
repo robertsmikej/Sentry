@@ -92,10 +92,10 @@ export function ImageUpload({ onImageSelected, onError }: ImageUploadProps) {
         onClick={handleClick}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
-        className="w-full aspect-[4/3] bg-base-300 rounded-lg border-2 border-dashed border-base-content/20 hover:border-primary/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-3 overflow-hidden"
+        className="w-full aspect-[4/3] bg-base-200/50 rounded-lg border-2 border-dashed border-primary/30 hover:border-primary hover:bg-primary/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 overflow-hidden shadow-sm"
       >
         {isLoading ? (
-          <span className="loading loading-spinner loading-lg"></span>
+          <span className="loading loading-spinner loading-lg text-primary"></span>
         ) : preview ? (
           <img
             src={preview}
@@ -104,25 +104,27 @@ export function ImageUpload({ onImageSelected, onError }: ImageUploadProps) {
           />
         ) : (
           <>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className="w-12 h-12 text-base-content/40"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
-              />
-            </svg>
+            <div className="p-4 rounded-full bg-primary/10">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-12 h-12 text-primary"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
+                />
+              </svg>
+            </div>
             <div className="text-center px-4">
-              <p className="text-base-content/60">
+              <p className="text-base-content/70 font-medium">
                 Tap to select an image
               </p>
-              <p className="text-sm text-base-content/40">
+              <p className="text-sm text-base-content/50">
                 or drag and drop
               </p>
             </div>
@@ -133,7 +135,7 @@ export function ImageUpload({ onImageSelected, onError }: ImageUploadProps) {
       <button
         onClick={handleClick}
         disabled={isLoading}
-        className="btn btn-primary btn-lg"
+        className="btn btn-primary btn-lg shadow-md hover:shadow-lg transition-shadow"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

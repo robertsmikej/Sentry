@@ -5,14 +5,14 @@ export function SyncStatus() {
 
   return (
     <div
-      className={`badge badge-sm gap-2 ${
+      className={`badge badge-sm gap-2 font-semibold ${
         isOnline
-          ? 'bg-success/20 text-success border-success/30'
-          : 'bg-error/20 text-error border-error/30'
+          ? 'bg-green-600/80 text-white border-green-500/50'
+          : 'bg-red-600/90 text-white border-red-500/50'
       }`}
     >
       <span
-        className={`w-2 h-2 rounded-full ${isOnline ? 'bg-success' : 'bg-error'}`}
+        className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-300' : 'bg-white animate-pulse'}`}
       ></span>
       {isOnline ? 'Online' : 'Offline'}
     </div>

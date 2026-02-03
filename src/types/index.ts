@@ -11,6 +11,7 @@ export interface LookupEntry {
   lastSeen?: Date;
   isLocal?: boolean; // true if added/edited by user locally
   needsSync?: boolean; // true if has unsynced local changes
+  pendingSeenIncrement?: boolean; // true if seenCount should be incremented in Google Sheets
 }
 
 export interface ScanEntry {
@@ -28,7 +29,67 @@ export interface UserSettings {
   writeUrl?: string; // Apps Script web app URL for write-back
   lastSyncTime?: Date;
   lastWriteSyncTime?: Date;
+  showEditFields?: boolean; // Show name/description/experience fields on scan result (default: false)
+  // Location settings
+  locationEnabled?: boolean; // Master toggle for location capture (opt-in, default: false)
+  locationPrecision?: 'exact' | 'neighborhood' | 'city'; // Precision level for stored coordinates
+  // Encounter sync settings
+  encounterWriteUrl?: string; // Apps Script URL for encounter sync
+  lastEncounterSyncTime?: Date;
 }
+
+// ============== ENCOUNTER TRACKING ==============
+
+// GPS location data
+export interface GeoLocation {
+  latitude: number;
+  longitude: number;
+  accuracy?: number; // meters
+  altitude?: number; // meters
+  timestamp: Date;
+}
+
+// Encounter represents a single sighting/interaction with a plate
+export interface Encounter {
+  id: string; // UUID
+  plateCode: string; // Links to LookupEntry.code
+  timestamp: Date;
+  experience?: Experience;
+
+  // Location (optional, requires user opt-in)
+  location?: GeoLocation;
+  locationLabel?: string; // User-defined label: "Work parking lot", "Near school"
+
+  // User metadata
+  notes?: string;
+  tags?: string[]; // User-defined tags
+
+  // Link to scan (if encounter was from camera scan)
+  scanId?: string; // Links to ScanEntry.id
+
+  // Sync status
+  needsSync?: boolean;
+  syncedAt?: Date;
+}
+
+// Default tag suggestions for encounters
+export const DEFAULT_ENCOUNTER_TAGS = [
+  'morning',
+  'afternoon',
+  'evening',
+  'night',
+  'weekday',
+  'weekend',
+  'parking-lot',
+  'street',
+  'highway',
+  'residential',
+  'commercial',
+  'suspicious',
+  'friendly',
+] as const;
+
+export type EncounterTag = (typeof DEFAULT_ENCOUNTER_TAGS)[number] | string;
 
 // Tesseract Page Segmentation Modes
 export type PSMMode =
@@ -50,4 +111,14 @@ export interface OCRSettings {
   charWhitelist: string;
   preprocessImage: boolean;
   contrastLevel: number; // 1.0 = normal, >1 = higher contrast
+}
+
+// Recognition method - OCR (local Tesseract) or AI (Gemini)
+export type RecognitionMethod = 'ocr' | 'gemini';
+
+export interface RecognitionSettings {
+  method: RecognitionMethod;
+  geminiApiKey: string; // User's own Gemini API key
+  geminiMaxImageSize: number; // Max dimension (width/height) for images sent to Gemini
+  geminiAutoScan: boolean; // Auto-scan when image captured, or show preview first
 }

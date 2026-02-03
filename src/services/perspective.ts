@@ -4,6 +4,9 @@
  * - Perspective transform to correct skewed images
  */
 
+// Max dimension for edge detection (prevents stack overflow on large images)
+const MAX_EDGE_DETECTION_DIMENSION = 800
+
 export interface Point {
   x: number
   y: number
@@ -71,7 +74,15 @@ function findEdgePoints(
   threshold: number
 ): Point[] {
   const points: Point[] = []
-  const maxMag = Math.max(...magnitude)
+
+  // Find max magnitude using a loop (spread operator causes stack overflow on large arrays)
+  let maxMag = 0
+  for (let i = 0; i < magnitude.length; i++) {
+    if (magnitude[i] > maxMag) {
+      maxMag = magnitude[i]
+    }
+  }
+
   const normalizedThreshold = maxMag * threshold
 
   for (let y = 0; y < height; y++) {
@@ -199,14 +210,46 @@ export function detectPlateCorners(canvas: HTMLCanvasElement): Corners {
     return getDefaultCorners(canvas.width, canvas.height)
   }
 
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const originalWidth = canvas.width
+  const originalHeight = canvas.height
+
+  // Resize for edge detection if image is too large (prevents stack overflow)
+  let workingCanvas = canvas
+  let scale = 1
+
+  if (originalWidth > MAX_EDGE_DETECTION_DIMENSION || originalHeight > MAX_EDGE_DETECTION_DIMENSION) {
+    scale = Math.min(
+      MAX_EDGE_DETECTION_DIMENSION / originalWidth,
+      MAX_EDGE_DETECTION_DIMENSION / originalHeight
+    )
+    const newWidth = Math.round(originalWidth * scale)
+    const newHeight = Math.round(originalHeight * scale)
+
+    workingCanvas = document.createElement('canvas')
+    workingCanvas.width = newWidth
+    workingCanvas.height = newHeight
+
+    const workingCtx = workingCanvas.getContext('2d')
+    if (!workingCtx) {
+      return getDefaultCorners(originalWidth, originalHeight)
+    }
+
+    workingCtx.drawImage(canvas, 0, 0, newWidth, newHeight)
+  }
+
+  const workingCtx = workingCanvas.getContext('2d')
+  if (!workingCtx) {
+    return getDefaultCorners(originalWidth, originalHeight)
+  }
+
+  const imageData = workingCtx.getImageData(0, 0, workingCanvas.width, workingCanvas.height)
   const {magnitude} = sobelEdgeDetection(imageData)
 
   // Find strong edge points
-  const edgePoints = findEdgePoints(magnitude, canvas.width, canvas.height, 0.3)
+  const edgePoints = findEdgePoints(magnitude, workingCanvas.width, workingCanvas.height, 0.3)
 
   if (edgePoints.length < 10) {
-    return getDefaultCorners(canvas.width, canvas.height)
+    return getDefaultCorners(originalWidth, originalHeight)
   }
 
   // Sample points to speed up convex hull (max 1000 points)
@@ -219,7 +262,17 @@ export function detectPlateCorners(canvas: HTMLCanvasElement): Corners {
   const hull = convexHull(sampledPoints)
 
   // Find the 4 corners
-  const corners = findQuadCorners(hull, canvas.width, canvas.height)
+  const corners = findQuadCorners(hull, workingCanvas.width, workingCanvas.height)
+
+  // Scale corners back to original image coordinates
+  if (scale !== 1) {
+    return {
+      topLeft: {x: corners.topLeft.x / scale, y: corners.topLeft.y / scale},
+      topRight: {x: corners.topRight.x / scale, y: corners.topRight.y / scale},
+      bottomLeft: {x: corners.bottomLeft.x / scale, y: corners.bottomLeft.y / scale},
+      bottomRight: {x: corners.bottomRight.x / scale, y: corners.bottomRight.y / scale}
+    }
+  }
 
   return corners
 }
