@@ -3,6 +3,7 @@ import {
   getAllLookupEntries,
   findLookupEntry,
   upsertLookupEntry,
+  deleteLookupEntry,
   incrementSeenCount,
   getUnsyncedCount,
   getUnsyncedEncounterCount,
@@ -33,6 +34,7 @@ interface UseLookupReturn {
   writeSync: (writeUrl: string) => Promise<{ success: boolean; count: number }>;
   refresh: () => Promise<void>;
   upsertPlate: (entry: LookupEntry) => Promise<void>;
+  deletePlate: (code: string) => Promise<void>;
   incrementSeen: (code: string) => Promise<LookupEntry | undefined>;
 }
 
@@ -199,6 +201,11 @@ export function useLookup(): UseLookupReturn {
     triggerImmediateSync();
   }, [refresh, triggerImmediateSync]);
 
+  const deletePlate = useCallback(async (code: string) => {
+    await deleteLookupEntry(code);
+    await refresh();
+  }, [refresh]);
+
   const incrementSeen = useCallback(async (code: string): Promise<LookupEntry | undefined> => {
     const updated = await incrementSeenCount(code);
     await refresh();
@@ -228,6 +235,7 @@ export function useLookup(): UseLookupReturn {
     writeSync,
     refresh,
     upsertPlate,
+    deletePlate,
     incrementSeen,
   };
 }

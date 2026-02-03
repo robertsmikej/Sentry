@@ -1,24 +1,56 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Dashboard } from './components/Dashboard';
 import { Scanner } from './components/Scanner';
-import { History } from './components/History';
 import { Settings } from './components/Settings';
 import { EncounterList } from './components/EncounterList';
 import { SyncStatus } from './components/SyncStatus';
+import { JoinModal } from './components/JoinModal';
 import { useAutoSync } from './hooks/useAutoSync';
 import { useOfflinePrep } from './hooks/useOfflinePrep';
+import { getJoinConfigFromUrl, type ShareableConfig } from './services/sharing';
+import { APP_NAME, APP_TAGLINE } from './constants/app';
 
-type Tab = 'scan' | 'history' | 'encounters' | 'settings';
+type Tab = 'home' | 'scan' | 'encounters' | 'settings';
 
 const THEME_STORAGE_KEY = 'plate-reader-theme';
 const DRAWER_ID = 'main-drawer';
 
+// Detect if device likely has a camera (mobile/tablet)
+function isMobileDevice(): boolean {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints > 0 && window.matchMedia('(pointer: coarse)').matches);
+}
+
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('scan');
+  const [activeTab, setActiveTab] = useState<Tab>('home');
   const [autoSyncMessage, setAutoSyncMessage] = useState<string | null>(null);
+  const [startWithManualEntry, setStartWithManualEntry] = useState(false);
+  const [startWithCamera, setStartWithCamera] = useState(false);
+  const [isMobile] = useState(() => isMobileDevice());
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
     return stored === 'dark';
   });
+
+  // Join modal state (for shared database links)
+  const [joinConfig, setJoinConfig] = useState<ShareableConfig | null>(null);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+
+  // Check for join URL on mount
+  useEffect(() => {
+    const config = getJoinConfigFromUrl();
+    if (config) {
+      setJoinConfig(config);
+      setShowJoinModal(true);
+    }
+  }, []);
+
+  const handleJoinComplete = useCallback(() => {
+    setShowJoinModal(false);
+    setJoinConfig(null);
+    setAutoSyncMessage('Successfully joined shared database!');
+    setTimeout(() => setAutoSyncMessage(null), 3000);
+  }, []);
 
   // Auto-sync callbacks
   const handleAutoSyncComplete = useCallback((count: number) => {
@@ -72,8 +104,8 @@ function App() {
 
       {/* Main Page Content */}
       <div className="drawer-content flex flex-col min-h-screen">
-        {/* Header - bold dark with red accent */}
-        <header className="navbar bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-4 shadow-lg sticky top-0 z-40 text-white border-b-2 border-red-600">
+        {/* Header */}
+        <header className="navbar px-4 shadow-md sticky top-0 z-40 text-white border-b border-[#0099cc]" style={{backgroundColor: '#01B2F0'}}>
           <div className="flex-none">
             <label htmlFor={DRAWER_ID} className="btn btn-ghost btn-circle btn-sm drawer-button text-white hover:bg-white/20">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
@@ -81,18 +113,92 @@ function App() {
               </svg>
             </label>
           </div>
-          <div className="flex-1 ml-2">
-            <h1 className="text-lg font-bold tracking-wide">Plate Reader</h1>
+          <div className="flex-1 ml-2 flex items-center">
+            <button
+              onClick={() => setActiveTab('home')}
+              className="hover:opacity-80 transition-opacity"
+              aria-label="Go to home"
+            >
+              <img
+                src="/logos/sentry_text_tight_padding.png"
+                alt={APP_NAME}
+                className="h-6 w-auto"
+              />
+            </button>
           </div>
-          <div className="flex-none">
+          <div className="flex-none flex items-center gap-1">
             <SyncStatus />
+            {/* Quick camera access - always visible */}
+            <button
+              onClick={() => {
+                if (isMobile) {
+                  setStartWithCamera(true);
+                  setActiveTab('scan');
+                } else {
+                  setActiveTab('scan');
+                }
+              }}
+              className="btn btn-ghost btn-circle btn-sm text-white hover:bg-white/20"
+              aria-label="Scan plate"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+              </svg>
+            </button>
           </div>
         </header>
 
+        {/* Breadcrumb Bar */}
+        <div className="bg-base-200 border-b border-base-300 px-4 py-2">
+          <div className="text-sm breadcrumbs">
+            <ul>
+              <li>
+                <button onClick={() => setActiveTab('home')} className="flex items-center hover:text-primary">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                  </svg>
+                </button>
+              </li>
+              <li>
+                <span className="font-medium">
+                  {activeTab === 'home' && 'Home'}
+                  {activeTab === 'scan' && 'Scan Plate'}
+                  {activeTab === 'encounters' && 'Encounters'}
+                  {activeTab === 'settings' && 'Settings'}
+                </span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
         {/* Main Content */}
         <main className="flex-1 overflow-auto">
-          {activeTab === 'scan' && <Scanner />}
-          {activeTab === 'history' && <History />}
+          {activeTab === 'home' && (
+            <Dashboard
+              onNavigate={(tab) => {
+                setActiveTab(tab);
+                setStartWithManualEntry(false);
+                setStartWithCamera(false);
+              }}
+              onManualEntry={() => {
+                setStartWithManualEntry(true);
+                setActiveTab('scan');
+              }}
+              onScanWithCamera={() => {
+                setStartWithCamera(true);
+                setActiveTab('scan');
+              }}
+            />
+          )}
+          {activeTab === 'scan' && (
+            <Scanner
+              startWithManualEntry={startWithManualEntry}
+              onManualEntryHandled={() => setStartWithManualEntry(false)}
+              startWithCamera={startWithCamera}
+              onCameraHandled={() => setStartWithCamera(false)}
+            />
+          )}
           {activeTab === 'encounters' && <EncounterList />}
           {activeTab === 'settings' && <Settings />}
         </main>
@@ -105,23 +211,43 @@ function App() {
             </div>
           </div>
         )}
+
+        {/* Join Modal (for shared database links) */}
+        {joinConfig && (
+          <JoinModal
+            config={joinConfig}
+            isOpen={showJoinModal}
+            onClose={() => {
+              setShowJoinModal(false);
+              setJoinConfig(null);
+            }}
+            onJoined={handleJoinComplete}
+          />
+        )}
       </div>
 
       {/* Slide-out Drawer */}
       <div className="drawer-side z-50">
         <label htmlFor={DRAWER_ID} aria-label="close sidebar" className="drawer-overlay"></label>
         <div className="menu bg-base-200 min-h-full w-72 p-0">
-          {/* Drawer Header - bold dark with red accent */}
-          <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-4 text-white border-b-2 border-red-600">
+          {/* Drawer Header */}
+          <div className="p-4 text-white border-b border-[#0a1f2e]" style={{backgroundColor: '#132F45'}}>
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold tracking-wide">Plate Reader</h2>
+              <div className="flex items-center gap-2">
+                <img
+                  src="/logos/sentry_logo_tight_padding.png"
+                  alt=""
+                  className="w-8 h-8"
+                />
+                <h2 className="text-xl font-bold tracking-wide">{APP_NAME}</h2>
+              </div>
               <label htmlFor={DRAWER_ID} className="btn btn-ghost btn-circle btn-sm text-white hover:bg-white/20">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                 </svg>
               </label>
             </div>
-            <p className="text-sm text-white/70 mt-1">Quick plate lookup</p>
+            <p className="text-sm text-white/70 mt-1">{APP_TAGLINE}</p>
           </div>
 
           <div className="p-4">
@@ -130,24 +256,25 @@ function App() {
           <ul className="space-y-1">
             <li>
               <button
-                onClick={() => handleNavClick('scan')}
-                className={`flex items-center gap-3 w-full ${activeTab === 'scan' ? 'active' : ''}`}
+                onClick={() => handleNavClick('home')}
+                className={`flex items-center gap-3 w-full ${activeTab === 'home' ? 'active' : ''}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 3.75H6A2.25 2.25 0 0 0 3.75 6v1.5M16.5 3.75H18A2.25 2.25 0 0 1 20.25 6v1.5m0 9V18A2.25 2.25 0 0 1 18 20.25h-1.5m-9 0H6A2.25 2.25 0 0 1 3.75 18v-1.5M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
                 </svg>
-                Scan Plate
+                Home
               </button>
             </li>
             <li>
               <button
-                onClick={() => handleNavClick('history')}
-                className={`flex items-center gap-3 w-full ${activeTab === 'history' ? 'active' : ''}`}
+                onClick={() => handleNavClick('scan')}
+                className={`flex items-center gap-3 w-full ${activeTab === 'scan' ? 'active' : ''}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
                 </svg>
-                History
+                Scan
               </button>
             </li>
             <li>
@@ -213,7 +340,7 @@ function App() {
           {/* Footer */}
           <div className="mt-auto pt-4 border-t border-base-300">
             <p className="text-xs text-base-content/50 text-center">
-              Plate Reader PWA
+              {APP_NAME}
             </p>
           </div>
           </div>

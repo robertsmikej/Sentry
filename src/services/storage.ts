@@ -1,6 +1,6 @@
 import { openDB } from 'idb';
 import type { DBSchema, IDBPDatabase } from 'idb';
-import type { LookupEntry, ScanEntry, UserSettings, Encounter } from '../types';
+import type { LookupEntry, ScanEntry, UserSettings, Encounter, Experience } from '../types';
 
 interface PlateReaderDB extends DBSchema {
   lookupData: {
@@ -338,6 +338,67 @@ export async function getRecentEncountersForPlate(plateCode: string, limit: numb
 export async function getEncounterCountForPlate(plateCode: string): Promise<number> {
   const encounters = await getEncountersForPlate(plateCode);
   return encounters.length;
+}
+
+// ============== DASHBOARD ==============
+
+// Dashboard stats
+export interface DashboardStats {
+  totalPlates: number;
+  totalEncounters: number;
+  encountersThisWeek: number;
+  pendingSync: number;
+  recentBadEncounters: number;
+}
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const plates = await getAllLookupEntries();
+  const encounters = await getAllEncounters();
+  const unsyncedPlates = await getUnsyncedCount();
+  const unsyncedEncounters = await getUnsyncedEncounterCount();
+
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+  const thisWeek = encounters.filter(e =>
+    new Date(e.timestamp) > oneWeekAgo
+  );
+
+  const recentBad = encounters.filter(e =>
+    e.experience === 'bad' && new Date(e.timestamp) > oneWeekAgo
+  );
+
+  return {
+    totalPlates: plates.length,
+    totalEncounters: encounters.length,
+    encountersThisWeek: thisWeek.length,
+    pendingSync: unsyncedPlates + unsyncedEncounters,
+    recentBadEncounters: recentBad.length,
+  };
+}
+
+// Recent encounters for dashboard (with plate info)
+export interface RecentEncounterWithPlate extends Encounter {
+  plateName?: string;
+  plateExperience?: Experience;
+}
+
+export async function getRecentEncountersWithPlates(limit: number = 8): Promise<RecentEncounterWithPlate[]> {
+  const encounters = await getAllEncounters();
+  const recentEncounters = encounters.slice(0, limit);
+
+  // Enrich with plate data
+  const enriched: RecentEncounterWithPlate[] = [];
+  for (const encounter of recentEncounters) {
+    const plate = await findLookupEntry(encounter.plateCode);
+    enriched.push({
+      ...encounter,
+      plateName: plate?.name,
+      plateExperience: plate?.experience,
+    });
+  }
+
+  return enriched;
 }
 
 // Migrate existing matched scans to encounters (one-time migration)

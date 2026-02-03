@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getAllEncounters, getEncountersForPlate, deleteEncounter, migrateScansToEncounters } from '../services/storage';
 import { formatLocation, getGoogleMapsUrl } from '../services/location';
+import { EncounterDetailModal } from './EncounterDetailModal';
 import type { Encounter } from '../types';
 
 interface EncounterListProps {
@@ -12,6 +13,7 @@ export function EncounterList({ plateCode }: EncounterListProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>('');
   const [migratedCount, setMigratedCount] = useState<number | null>(null);
+  const [selectedEncounter, setSelectedEncounter] = useState<Encounter | null>(null);
 
   // Load encounters
   const loadEncounters = async () => {
@@ -45,7 +47,6 @@ export function EncounterList({ plateCode }: EncounterListProps) {
 
   // Delete an encounter
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this encounter?')) return;
     try {
       await deleteEncounter(id);
       setEncounters(encounters.filter((e) => e.id !== id));
@@ -125,7 +126,7 @@ export function EncounterList({ plateCode }: EncounterListProps) {
 
       {/* Migration button (if no encounters exist) */}
       {encounters.length === 0 && (
-        <div className="card bg-base-200">
+        <div className="card bg-base-100 shadow-md border border-base-300">
           <div className="card-body">
             <h3 className="card-title text-base">No encounters yet</h3>
             <p className="text-sm text-base-content/70">
@@ -153,10 +154,14 @@ export function EncounterList({ plateCode }: EncounterListProps) {
           <h3 className="text-sm font-semibold text-base-content/70 sticky top-0 bg-base-100 py-1">
             {date}
           </h3>
-          {dateEncounters.map((encounter) => (
+          {dateEncounters.map((encounter) => {
+            const exp = encounter.experience || 'neutral'
+            const borderColor = exp === 'good' ? 'border-l-success' : exp === 'bad' ? 'border-l-error' : 'border-l-warning'
+            return (
             <div
               key={encounter.id}
-              className="card bg-base-200 shadow-sm"
+              className={`card bg-base-100 shadow-md border border-base-300 border-l-4 ${borderColor} cursor-pointer hover:bg-base-200 transition-colors`}
+              onClick={() => setSelectedEncounter(encounter)}
             >
               <div className="card-body p-3">
                 <div className="flex items-start justify-between">
@@ -186,13 +191,6 @@ export function EncounterList({ plateCode }: EncounterListProps) {
                       </div>
                     )}
 
-                    {/* Location label */}
-                    {encounter.locationLabel && !encounter.location && (
-                      <div className="text-sm text-base-content/70 mt-1">
-                        {encounter.locationLabel}
-                      </div>
-                    )}
-
                     {/* Notes */}
                     {encounter.notes && (
                       <div className="text-sm mt-2 p-2 bg-base-300 rounded">
@@ -212,38 +210,21 @@ export function EncounterList({ plateCode }: EncounterListProps) {
                     )}
                   </div>
 
-                  {/* Actions */}
-                  <div className="dropdown dropdown-end">
-                    <label tabIndex={0} className="btn btn-ghost btn-xs btn-circle">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth={1.5}
-                        stroke="currentColor"
-                        className="w-4 h-4"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z"
-                        />
-                      </svg>
-                    </label>
-                    <ul
-                      tabIndex={0}
-                      className="dropdown-content z-10 menu p-2 shadow bg-base-100 rounded-box w-32"
-                    >
-                      <li>
-                        <button
-                          onClick={() => handleDelete(encounter.id)}
-                          className="text-error"
-                        >
-                          Delete
-                        </button>
-                      </li>
-                    </ul>
-                  </div>
+                  {/* Chevron indicator */}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                    className="w-5 h-5 text-base-content/40"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="m8.25 4.5 7.5 7.5-7.5 7.5"
+                    />
+                  </svg>
                 </div>
 
                 {/* Sync status */}
@@ -254,7 +235,7 @@ export function EncounterList({ plateCode }: EncounterListProps) {
                 )}
               </div>
             </div>
-          ))}
+          )})}
         </div>
       ))}
 
@@ -264,6 +245,14 @@ export function EncounterList({ plateCode }: EncounterListProps) {
           No encounters match "{filter}"
         </div>
       )}
+
+      {/* Encounter Detail Modal */}
+      <EncounterDetailModal
+        encounter={selectedEncounter}
+        onClose={() => setSelectedEncounter(null)}
+        onUpdate={loadEncounters}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }

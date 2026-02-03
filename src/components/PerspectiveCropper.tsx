@@ -548,7 +548,8 @@ export function PerspectiveCropper({
         <button
           onClick={handleConfirm}
           disabled={!imageLoaded || isDetecting}
-          className="btn btn-primary btn-lg flex-1 min-h-[56px]"
+          className="btn btn-lg flex-1 min-h-[56px] text-white hover:brightness-110 active:brightness-95 disabled:opacity-50"
+          style={{backgroundColor: '#132F45'}}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

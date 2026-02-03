@@ -1,2 +1,25 @@
 @import "tailwindcss";
 @plugin "daisyui";
+
+/* Increase base font size (default is 16px) - scales all rem-based sizing */
+html {
+  font-size: 17px;
+}
+
+/* Brand colors: Dark blue #132F45, Light blue #01B2F0 */
+:root {
+  /* Override DaisyUI primary color with brand light blue */
+  --p: 195 99% 47%; /* #01B2F0 in HSL */
+  --pc: 210 100% 98%; /* Primary content (text on primary) - light color */
+
+  /* Info color also uses brand blue */
+  --in: 195 99% 47%;
+  --inc: 210 100% 98%;
+}
+
+[data-theme="dark"] {
+  --p: 195 99% 47%;
+  --pc: 210 100% 98%;
+  --in: 195 99% 47%;
+  --inc: 210 100% 98%;
+}

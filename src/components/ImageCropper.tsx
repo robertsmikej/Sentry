@@ -19,13 +19,29 @@ interface CropArea {
   height: number
 }
 
+interface Point {
+  x: number
+  y: number
+}
+
+interface Corners {
+  topLeft: Point
+  topRight: Point
+  bottomLeft: Point
+  bottomRight: Point
+}
+
 interface ImageCropperProps {
   imageDataUrl: string
-  onCropComplete: (canvas: HTMLCanvasElement) => void
+  onCropComplete: (canvas: HTMLCanvasElement, corners: Corners) => void
   onCancel: () => void
-  onPerspective?: (canvas: HTMLCanvasElement) => void
+  onPerspective?: (canvas: HTMLCanvasElement, corners: Corners) => void
   /** Override default aspect ratio (width/height). Default is 3 for wide plates, use ~1.2 for more square */
   defaultAspectRatio?: number
+  /** Override horizontal margin (0.05 = 5% margin each side = 90% width). Default is 0.05 */
+  defaultHorizontalMargin?: number
+  /** Override max height as percentage of image (0.8 = 80% height). Default is 0.54 */
+  defaultMaxHeightPercent?: number
 }
 
 export function ImageCropper({
@@ -33,7 +49,9 @@ export function ImageCropper({
   onCropComplete,
   onCancel,
   onPerspective,
-  defaultAspectRatio = DEFAULT_ASPECT_RATIO
+  defaultAspectRatio = DEFAULT_ASPECT_RATIO,
+  defaultHorizontalMargin = DEFAULT_HORIZONTAL_MARGIN,
+  defaultMaxHeightPercent = DEFAULT_MAX_HEIGHT_PERCENT
 }: ImageCropperProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
@@ -87,17 +105,17 @@ export function ImageCropper({
     setDisplaySize({width: displayWidth, height: displayHeight})
 
     // Initialize crop to a plate-shaped rectangle (wide and short)
-    const cropWidth = displayWidth * (1 - DEFAULT_HORIZONTAL_MARGIN * 2)
+    const cropWidth = displayWidth * (1 - defaultHorizontalMargin * 2)
     let cropHeight = cropWidth / defaultAspectRatio
 
     // Make sure the crop height doesn't exceed max percentage of image height
-    const maxCropHeight = displayHeight * DEFAULT_MAX_HEIGHT_PERCENT
+    const maxCropHeight = displayHeight * defaultMaxHeightPercent
     if (cropHeight > maxCropHeight) {
       cropHeight = maxCropHeight
     }
 
     // Center the crop area
-    const cropX = displayWidth * DEFAULT_HORIZONTAL_MARGIN
+    const cropX = displayWidth * defaultHorizontalMargin
     const cropY = (displayHeight - cropHeight) / 2
 
     setCropArea({
@@ -108,7 +126,7 @@ export function ImageCropper({
     })
 
     setImageLoaded(true)
-  }, [defaultAspectRatio])
+  }, [defaultAspectRatio, defaultHorizontalMargin, defaultMaxHeightPercent])
 
   // Recalculate on resize
   useEffect(() => {
@@ -378,7 +396,18 @@ export function ImageCropper({
       naturalCrop.height
     )
 
-    onCropComplete(canvas)
+    // Convert crop rectangle to corners (in the cropped image's coordinate space)
+    // Add 7% margin so corners are easier to grab in perspective tool
+    const marginX = naturalCrop.width * 0.07
+    const marginY = naturalCrop.height * 0.07
+    const corners: Corners = {
+      topLeft: {x: marginX, y: marginY},
+      topRight: {x: naturalCrop.width - marginX, y: marginY},
+      bottomLeft: {x: marginX, y: naturalCrop.height - marginY},
+      bottomRight: {x: naturalCrop.width - marginX, y: naturalCrop.height - marginY}
+    }
+
+    onCropComplete(canvas, corners)
   }
 
   // Apply crop and go to perspective correction
@@ -416,7 +445,18 @@ export function ImageCropper({
       naturalCrop.height
     )
 
-    onPerspective(canvas)
+    // Convert crop rectangle to corners (in the cropped image's coordinate space)
+    // Add 7% margin so corners are easier to grab in perspective tool
+    const marginX = naturalCrop.width * 0.07
+    const marginY = naturalCrop.height * 0.07
+    const corners: Corners = {
+      topLeft: {x: marginX, y: marginY},
+      topRight: {x: naturalCrop.width - marginX, y: marginY},
+      bottomLeft: {x: marginX, y: naturalCrop.height - marginY},
+      bottomRight: {x: naturalCrop.width - marginX, y: naturalCrop.height - marginY}
+    }
+
+    onPerspective(canvas, corners)
   }
 
   // Calculate offset to center image in container
@@ -569,7 +609,8 @@ export function ImageCropper({
         <button
           onClick={handleCropConfirm}
           disabled={!imageLoaded}
-          className="btn btn-primary btn-lg flex-1 min-h-[56px]"
+          className="btn btn-lg flex-1 min-h-[56px] text-white hover:brightness-110 active:brightness-95 disabled:opacity-50"
+          style={{backgroundColor: '#132F45'}}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

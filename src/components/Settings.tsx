@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLookup } from '../hooks/useLookup';
 import { getSettings, saveSettings } from '../services/storage';
 import { APPS_SCRIPT_CODE } from '../services/writeSync';
+import { ShareModal } from './ShareModal';
 import {
   getOCRSettings,
   saveOCRSettings,
@@ -13,6 +14,7 @@ import {
 } from '../services/ocr';
 import { validateGeminiApiKey } from '../services/gemini';
 import type { OCRSettings, PSMMode, RecognitionSettings, RecognitionMethod } from '../types';
+import { APP_NAME, APP_DESCRIPTION } from '../constants/app';
 
 export function Settings() {
   const [sheetUrl, setSheetUrl] = useState('');
@@ -41,6 +43,9 @@ export function Settings() {
   // Location Settings
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [locationPrecision, setLocationPrecision] = useState<'exact' | 'neighborhood' | 'city'>('neighborhood');
+
+  // Share Modal
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const {
     entries,
@@ -416,6 +421,54 @@ export function Settings() {
         </div>
       </div>
 
+      {/* Share Database Card */}
+      <div className="card bg-base-200">
+        <div className="card-body">
+          <h3 className="card-title text-base">Share Database</h3>
+          <p className="text-sm text-base-content/60">
+            Share your plate watchlist with family or neighbors. They'll be able to see and edit the same database.
+          </p>
+          <div className="mt-2">
+            <button
+              onClick={() => setShowShareModal(true)}
+              disabled={!sheetUrl}
+              className="btn btn-outline btn-sm gap-2"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-4 h-4"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
+                />
+              </svg>
+              Share with Others
+            </button>
+            {!sheetUrl && (
+              <p className="text-xs text-base-content/50 mt-2">
+                Add a Google Sheets URL above to enable sharing
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        config={{
+          sheetUrl,
+          writeUrl: writeUrl || undefined,
+        }}
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+      />
+
       {/* Recognition Method Card */}
       <div className="card bg-base-200">
         <div className="card-body">
@@ -537,6 +590,36 @@ export function Settings() {
                       {apiKeyValid ? 'API key is valid' : 'Invalid API key'}
                     </span>
                   </label>
+                )}
+                {/* Get API Key Link */}
+                {!recognitionSettings.geminiApiKey && (
+                  <div className="mt-2">
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-sm btn-outline gap-2"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={1.5}
+                        stroke="currentColor"
+                        className="w-4 h-4"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+                        />
+                      </svg>
+                      Get Free API Key
+                    </a>
+                    <p className="text-xs text-base-content/50 mt-2">
+                      Opens Google AI Studio. Sign in with Google, click "Create API Key", then paste it above.
+                    </p>
+                  </div>
                 )}
               </div>
 
@@ -1031,10 +1114,10 @@ export function Settings() {
       {/* About */}
       <div className="card bg-base-200">
         <div className="card-body">
-          <h3 className="card-title text-base">About Plate Reader</h3>
+          <h3 className="card-title text-base">About {APP_NAME}</h3>
           <div className="text-sm text-base-content/70 space-y-2">
             <p>
-              <strong>Plate Reader</strong> helps you quickly identify and track license plates using your phone's camera or photo library.
+              {APP_DESCRIPTION}
             </p>
             <p><strong>Features:</strong></p>
             <ul className="list-disc list-inside ml-2 space-y-1">
