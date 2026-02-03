@@ -1,0 +1,9 @@
+name = "sentry-plate-reader"
+compatibility_date = "2024-01-01"
+
+# Serve static assets from the dist directory
+[assets]
+directory = "./dist"
+# SPA mode - serves index.html for routes that don't match a file
+html_handling = "auto-trailing-slash"
+not_found_handling = "single-page-application"
