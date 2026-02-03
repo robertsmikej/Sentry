@@ -459,14 +459,6 @@ export function ImageCropper({
     onPerspective(canvas, corners)
   }
 
-  // Calculate offset to center image in container
-  const offsetX =
-    (containerRef.current?.getBoundingClientRect().width ||
-      0 - displaySize.width) / 2
-  const offsetY =
-    (containerRef.current?.getBoundingClientRect().height ||
-      0 - displaySize.height) / 2
-
   return (
     <div className="flex flex-col items-center gap-2 w-full max-w-md">
       <p className="text-sm text-base-content/60">Drag to adjust crop area</p>

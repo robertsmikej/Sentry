@@ -153,11 +153,7 @@ function findQuadCorners(hull: Point[], width: number, height: number): Corners 
     }
   }
 
-  // Find the 4 extreme points
-  const centerX = hull.reduce((sum, p) => sum + p.x, 0) / hull.length
-  const centerY = hull.reduce((sum, p) => sum + p.y, 0) / hull.length
-
-  // Score each hull point for each corner position
+  // Find the 4 extreme points by scoring each hull point for each corner position
   let topLeft = hull[0]
   let topRight = hull[0]
   let bottomLeft = hull[0]

@@ -146,40 +146,6 @@ function preprocessImage(
   return canvas
 }
 
-/**
- * Apply morphological erosion - a pixel is only kept if all neighbors are also set
- * This thins lines and breaks weak connections
- */
-function applyErosion(
-  binary: boolean[],
-  width: number,
-  height: number
-): boolean[] {
-  const result: boolean[] = new Array(binary.length).fill(false)
-
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const idx = y * width + x
-
-      // Check 3x3 neighborhood - pixel survives only if center and most neighbors are set
-      // Using a less aggressive erosion (5 out of 9 neighbors)
-      let count = 0
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          if (binary[(y + dy) * width + (x + dx)]) {
-            count++
-          }
-        }
-      }
-
-      // Keep pixel if it's set and has strong support from neighbors
-      result[idx] = binary[idx] && count >= 5
-    }
-  }
-
-  return result
-}
-
 interface RecognitionResult {
   text: string
   confidence: number

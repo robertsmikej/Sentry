@@ -95,9 +95,6 @@ export function EncounterDetailModal({
     setHasChanges(true)
   }
 
-  // Determine display experience (encounter's own or inherited from plate)
-  const displayExperience = encounter.experience || plateExperience || 'neutral'
-
   return (
     <dialog className="modal modal-open">
       <div className="modal-box max-w-md">
