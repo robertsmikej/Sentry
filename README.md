@@ -10,7 +10,8 @@
 
 <p align="center">
   <strong>Want your own private instance?</strong><br>
-  Click below to deploy your own copy — no coding required, free hosting included.
+  Click below to deploy your own copy — no coding required, free hosting included.<br>
+  <em>(Requires a free GitHub account)</em>
 </p>
 
 <p align="center">
