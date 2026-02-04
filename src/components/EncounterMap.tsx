@@ -155,7 +155,7 @@ export function EncounterMap({
   return (
     <div
       ref={mapRef}
-      className={`rounded-lg overflow-hidden shadow-md border border-base-300 ${className}`}
+      className={`rounded-lg overflow-hidden shadow-md border border-base-300 isolate ${className}`}
       style={{ height }}
     />
   )

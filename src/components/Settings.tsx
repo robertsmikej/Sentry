@@ -19,7 +19,7 @@ import { APP_NAME, APP_DESCRIPTION, DEFAULT_SHEET_URL, DEFAULT_WRITE_URL } from 
 export function Settings() {
   const [sheetUrl, setSheetUrl] = useState('');
   const [writeUrl, setWriteUrl] = useState('');
-  const [showEditFields, setShowEditFields] = useState(false);
+  const [showEditFields, setShowEditFields] = useState(true);
   const [showScript, setShowScript] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [writeToast, setWriteToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
@@ -41,7 +41,7 @@ export function Settings() {
   const recognitionInitialLoadDone = useRef(false);
 
   // Location Settings
-  const [locationEnabled, setLocationEnabled] = useState(false);
+  const [locationEnabled, setLocationEnabled] = useState(true);
   const [locationPrecision, setLocationPrecision] = useState<'exact' | 'neighborhood' | 'city'>('neighborhood');
 
   // Share Modal

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getAllEncounters, getEncountersForPlate, deleteEncounter, migrateScansToEncounters } from '../services/storage';
-import { formatLocation, getGoogleMapsUrl } from '../services/location';
 import { EncounterDetailModal } from './EncounterDetailModal';
+import { EncounterItem } from './EncounterItem';
 import type { Encounter } from '../types';
 
 interface EncounterListProps {
@@ -62,14 +62,6 @@ export function EncounterList({ plateCode }: EncounterListProps) {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
-    });
-  };
-
-  const formatTime = (date: Date) => {
-    const d = new Date(date);
-    return d.toLocaleTimeString(undefined, {
-      hour: 'numeric',
-      minute: '2-digit',
     });
   };
 
@@ -154,88 +146,14 @@ export function EncounterList({ plateCode }: EncounterListProps) {
           <h3 className="text-sm font-semibold text-base-content/70 sticky top-0 bg-base-100 py-1">
             {date}
           </h3>
-          {dateEncounters.map((encounter) => {
-            const exp = encounter.experience || 'neutral'
-            const borderColor = exp === 'good' ? 'border-l-success' : exp === 'bad' ? 'border-l-error' : 'border-l-warning'
-            return (
-            <div
+          {dateEncounters.map((encounter) => (
+            <EncounterItem
               key={encounter.id}
-              className={`card bg-base-100 shadow-md border border-base-300 border-l-4 ${borderColor} cursor-pointer hover:bg-base-200 transition-colors`}
+              encounter={encounter}
               onClick={() => setSelectedEncounter(encounter)}
-            >
-              <div className="card-body p-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    {/* Plate code */}
-                    <div className="font-mono font-bold text-lg">
-                      {encounter.plateCode}
-                    </div>
-
-                    {/* Time */}
-                    <div className="text-sm text-base-content/60">
-                      {formatTime(encounter.timestamp)}
-                    </div>
-
-                    {/* Location */}
-                    {encounter.location && (
-                      <div className="text-sm text-base-content/70 mt-1">
-                        <a
-                          href={getGoogleMapsUrl(encounter.location)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="link link-primary"
-                        >
-                          {encounter.locationLabel ||
-                            formatLocation(encounter.location)}
-                        </a>
-                      </div>
-                    )}
-
-                    {/* Notes */}
-                    {encounter.notes && (
-                      <div className="text-sm mt-2 p-2 bg-base-300 rounded">
-                        {encounter.notes}
-                      </div>
-                    )}
-
-                    {/* Tags */}
-                    {encounter.tags && encounter.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {encounter.tags.map((tag) => (
-                          <span key={tag} className="badge badge-sm badge-outline">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Chevron indicator */}
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                    className="w-5 h-5 text-base-content/40"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="m8.25 4.5 7.5 7.5-7.5 7.5"
-                    />
-                  </svg>
-                </div>
-
-                {/* Sync status */}
-                {encounter.needsSync && (
-                  <div className="text-xs text-warning mt-1">
-                    Pending sync
-                  </div>
-                )}
-              </div>
-            </div>
-          )})}
+              showRelativeTime={false}
+            />
+          ))}
         </div>
       ))}
 

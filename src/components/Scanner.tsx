@@ -84,6 +84,8 @@ interface ScannerProps {
   onManualEntryHandled?: () => void;
   startWithCamera?: boolean;
   onCameraHandled?: () => void;
+  startWithUpload?: boolean;
+  onUploadHandled?: () => void;
 }
 
 // Detect if device likely has a camera (mobile/tablet)
@@ -92,7 +94,7 @@ function isMobileDevice(): boolean {
     (navigator.maxTouchPoints > 0 && window.matchMedia('(pointer: coarse)').matches)
 }
 
-export function Scanner({ startWithManualEntry, onManualEntryHandled, startWithCamera, onCameraHandled }: ScannerProps = {}) {
+export function Scanner({ startWithManualEntry, onManualEntryHandled, startWithCamera, onCameraHandled, startWithUpload, onUploadHandled }: ScannerProps = {}) {
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
   const [scanState, setScanState] = useState<ScanState>('idle')
@@ -121,7 +123,7 @@ export function Scanner({ startWithManualEntry, onManualEntryHandled, startWithC
   const [currentEncounterId, setCurrentEncounterId] = useState<string | null>(null)
 
   // Display settings
-  const [showEditFields, setShowEditFields] = useState(false)
+  const [showEditFields, setShowEditFields] = useState(true)
 
   // Recent encounters for quick-view (enriched with lookup info)
   const [recentEncounters, setRecentEncounters] = useState<(Encounter & { isKnown?: boolean; dbExperience?: Experience })[]>([])
@@ -180,6 +182,28 @@ export function Scanner({ startWithManualEntry, onManualEntryHandled, startWithC
       }, 100)
     }
   }, [startWithCamera, scanState, onCameraHandled])
+
+  // Handle external trigger for upload (from Dashboard)
+  const uploadTriggeredRef = useRef(false)
+  useEffect(() => {
+    if (startWithUpload && scanState === 'idle' && !uploadTriggeredRef.current) {
+      uploadTriggeredRef.current = true
+      // Small delay to ensure the input is ready
+      setTimeout(() => {
+        // Use guarded open to prevent double-triggers
+        if (!isFilePickerOpenRef.current && !isProcessingFileRef.current) {
+          isFilePickerOpenRef.current = true
+          galleryInputRef.current?.click()
+        }
+        onUploadHandled?.()
+        // Reset after a delay to allow future triggers
+        setTimeout(() => {
+          uploadTriggeredRef.current = false
+          isFilePickerOpenRef.current = false
+        }, 1000)
+      }, 100)
+    }
+  }, [startWithUpload, scanState, onUploadHandled])
 
   const {isProcessing, progress, processImage, usedFallback} = useOCR()
   const {lookup, upsertPlate, deletePlate, incrementSeen} = useLookup()

@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { Scanner } from './components/Scanner';
 import { Settings } from './components/Settings';
 import { EncounterList } from './components/EncounterList';
+import { PlateList } from './components/PlateList';
 import { SyncStatus } from './components/SyncStatus';
 import { JoinModal } from './components/JoinModal';
 import { useAutoSync } from './hooks/useAutoSync';
@@ -10,7 +11,7 @@ import { useOfflinePrep } from './hooks/useOfflinePrep';
 import { getJoinConfigFromUrl, type ShareableConfig } from './services/sharing';
 import { APP_NAME, APP_TAGLINE } from './constants/app';
 
-type Tab = 'home' | 'scan' | 'encounters' | 'settings';
+type Tab = 'home' | 'scan' | 'plates' | 'encounters' | 'settings';
 
 const THEME_STORAGE_KEY = 'plate-reader-theme';
 const DRAWER_ID = 'main-drawer';
@@ -26,6 +27,7 @@ function App() {
   const [autoSyncMessage, setAutoSyncMessage] = useState<string | null>(null);
   const [startWithManualEntry, setStartWithManualEntry] = useState(false);
   const [startWithCamera, setStartWithCamera] = useState(false);
+  const [startWithUpload, setStartWithUpload] = useState(false);
   const [isMobile] = useState(() => isMobileDevice());
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
@@ -88,14 +90,21 @@ function App() {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [isDarkMode]);
 
+  const mainContentRef = useRef<HTMLElement>(null);
+
   const closeDrawer = () => {
     const checkbox = document.getElementById(DRAWER_ID) as HTMLInputElement;
     if (checkbox) checkbox.checked = false;
   };
 
+  const scrollToTop = () => {
+    mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleNavClick = (tab: Tab) => {
     setActiveTab(tab);
     closeDrawer();
+    scrollToTop();
   };
 
   return (
@@ -115,7 +124,7 @@ function App() {
           </div>
           <div className="flex-1 ml-2 flex items-center">
             <button
-              onClick={() => setActiveTab('home')}
+              onClick={() => { setActiveTab('home'); scrollToTop(); }}
               className="hover:opacity-80 transition-opacity"
               aria-label="Go to home"
             >
@@ -137,6 +146,7 @@ function App() {
                 } else {
                   setActiveTab('scan');
                 }
+                scrollToTop();
               }}
               className="btn btn-ghost btn-circle btn-sm text-white hover:bg-white/20"
               aria-label="Scan plate"
@@ -154,7 +164,7 @@ function App() {
           <div className="text-sm breadcrumbs">
             <ul>
               <li>
-                <button onClick={() => setActiveTab('home')} className="flex items-center hover:text-primary">
+                <button onClick={() => { setActiveTab('home'); scrollToTop(); }} className="flex items-center hover:text-primary">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
                   </svg>
@@ -164,6 +174,7 @@ function App() {
                 <span className="font-medium">
                   {activeTab === 'home' && 'Home'}
                   {activeTab === 'scan' && 'Scan Plate'}
+                  {activeTab === 'plates' && 'Plates'}
                   {activeTab === 'encounters' && 'Encounters'}
                   {activeTab === 'settings' && 'Settings'}
                 </span>
@@ -173,21 +184,30 @@ function App() {
         </div>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto">
+        <main ref={mainContentRef} className="flex-1 overflow-auto">
           {activeTab === 'home' && (
             <Dashboard
               onNavigate={(tab) => {
                 setActiveTab(tab);
                 setStartWithManualEntry(false);
                 setStartWithCamera(false);
+                setStartWithUpload(false);
+                scrollToTop();
               }}
               onManualEntry={() => {
                 setStartWithManualEntry(true);
                 setActiveTab('scan');
+                scrollToTop();
               }}
               onScanWithCamera={() => {
                 setStartWithCamera(true);
                 setActiveTab('scan');
+                scrollToTop();
+              }}
+              onUploadPhoto={() => {
+                setStartWithUpload(true);
+                setActiveTab('scan');
+                scrollToTop();
               }}
             />
           )}
@@ -197,15 +217,18 @@ function App() {
               onManualEntryHandled={() => setStartWithManualEntry(false)}
               startWithCamera={startWithCamera}
               onCameraHandled={() => setStartWithCamera(false)}
+              startWithUpload={startWithUpload}
+              onUploadHandled={() => setStartWithUpload(false)}
             />
           )}
+          {activeTab === 'plates' && <PlateList />}
           {activeTab === 'encounters' && <EncounterList />}
           {activeTab === 'settings' && <Settings />}
         </main>
 
         {/* Auto-sync Toast */}
         {autoSyncMessage && (
-          <div className="toast toast-top toast-center z-50">
+          <div className="toast toast-bottom toast-center z-50">
             <div className="alert alert-success">
               <span>{autoSyncMessage}</span>
             </div>
@@ -279,6 +302,17 @@ function App() {
             </li>
             <li>
               <button
+                onClick={() => handleNavClick('plates')}
+                className={`flex items-center gap-3 w-full ${activeTab === 'plates' ? 'active' : ''}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                </svg>
+                Plates
+              </button>
+            </li>
+            <li>
+              <button
                 onClick={() => handleNavClick('encounters')}
                 className={`flex items-center gap-3 w-full ${activeTab === 'encounters' ? 'active' : ''}`}
               >
@@ -308,29 +342,28 @@ function App() {
 
           {/* Theme Toggle */}
           <div className="px-2">
-            <h3 className="text-sm font-semibold text-base-content/70 mb-3">Appearance</h3>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => setIsDarkMode(false)}
-                className={`btn btn-sm justify-start gap-3 ${!isDarkMode ? 'btn-primary' : 'btn-ghost'}`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
-                </svg>
-                Light Mode
-              </button>
-              <button
-                onClick={() => setIsDarkMode(true)}
-                className={`btn btn-sm justify-start gap-3 ${isDarkMode ? 'btn-primary' : 'btn-ghost'}`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
-                </svg>
-                Dark Mode
-              </button>
-              <p className="text-xs text-base-content/50 mt-1 px-1">
-                Tip: Dark mode saves battery on OLED screens
-              </p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-base-content/70">Theme</span>
+              <div className="flex bg-base-300 rounded-lg p-1">
+                <button
+                  onClick={() => setIsDarkMode(false)}
+                  className={`btn btn-xs btn-circle ${!isDarkMode ? 'btn-primary' : 'btn-ghost'}`}
+                  aria-label="Light mode"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setIsDarkMode(true)}
+                  className={`btn btn-xs btn-circle ${isDarkMode ? 'btn-primary' : 'btn-ghost'}`}
+                  aria-label="Dark mode"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
 

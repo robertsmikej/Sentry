@@ -3,17 +3,23 @@ import {
   getDashboardStats,
   getRecentEncountersWithPlates,
   deleteEncounter,
+  getSettings,
+  saveSettings,
   type DashboardStats,
   type RecentEncounterWithPlate
 } from '../services/storage'
-import {APP_NAME, APP_TAGLINE} from '../constants/app'
+import {APP_NAME, APP_TAGLINE, DEFAULT_SHEET_URL, DEFAULT_WRITE_URL} from '../constants/app'
 import {EncounterDetailModal} from './EncounterDetailModal'
 import {EncounterMap} from './EncounterMap'
+import {EncounterItem} from './EncounterItem'
+import {SetupModal} from './SetupModal'
+import {useLookup} from '../hooks/useLookup'
 
 interface DashboardProps {
   onNavigate: (tab: 'scan' | 'encounters' | 'settings') => void
   onManualEntry: () => void
   onScanWithCamera: () => void
+  onUploadPhoto: () => void
 }
 
 // Detect if device likely has a camera (mobile/tablet)
@@ -22,41 +28,7 @@ function isMobileDevice(): boolean {
     (navigator.maxTouchPoints > 0 && window.matchMedia('(pointer: coarse)').matches)
 }
 
-// Format relative time (e.g., "2 min ago", "1 hour ago", "Yesterday")
-function formatRelativeTime(date: Date): string {
-  const now = new Date()
-  const diffMs = now.getTime() - new Date(date).getTime()
-  const diffMins = Math.floor(diffMs / (1000 * 60))
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins} min ago`
-  if (diffHours < 24)
-    return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  return new Date(date).toLocaleDateString()
-}
-
-// Experience indicator dot
-function ExperienceDot({
-  experience
-}: {
-  experience?: 'good' | 'bad' | 'neutral'
-}) {
-  if (experience === 'good') {
-    return (
-      <span className="w-3 h-3 rounded-full bg-success inline-block"></span>
-    )
-  }
-  if (experience === 'bad') {
-    return <span className="w-3 h-3 rounded-full bg-error inline-block"></span>
-  }
-  return <span className="w-3 h-3 rounded-full bg-warning inline-block"></span>
-}
-
-export function Dashboard({onNavigate, onManualEntry, onScanWithCamera}: DashboardProps) {
+export function Dashboard({onNavigate, onManualEntry, onScanWithCamera, onUploadPhoto}: DashboardProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [isMobile] = useState(() => isMobileDevice())
   const [recentEncounters, setRecentEncounters] = useState<
@@ -64,15 +36,27 @@ export function Dashboard({onNavigate, onManualEntry, onScanWithCamera}: Dashboa
   >([])
   const [loading, setLoading] = useState(true)
   const [selectedEncounter, setSelectedEncounter] = useState<RecentEncounterWithPlate | null>(null)
+  const [writeUrl, setWriteUrl] = useState<string>('')
+  const [showSetupModal, setShowSetupModal] = useState(false)
 
-  const loadData = async () => {
+  const { writeSync, isWriteSyncing } = useLookup()
+
+  const loadData = async (checkSetup = false) => {
     try {
-      const [statsData, encounters] = await Promise.all([
+      const [statsData, encounters, settings] = await Promise.all([
         getDashboardStats(),
-        getRecentEncountersWithPlates(8)
+        getRecentEncountersWithPlates(8),
+        getSettings()
       ])
       setStats(statsData)
       setRecentEncounters(encounters)
+      if (settings?.writeUrl) {
+        setWriteUrl(settings.writeUrl)
+      }
+      // Show setup modal if URLs are not configured on initial load
+      if (checkSetup && (!settings?.sheetUrl || !settings?.writeUrl)) {
+        setShowSetupModal(true)
+      }
     } catch (error) {
       console.error('Failed to load dashboard data:', error)
     } finally {
@@ -81,8 +65,14 @@ export function Dashboard({onNavigate, onManualEntry, onScanWithCamera}: Dashboa
   }
 
   useEffect(() => {
-    loadData()
+    loadData(true) // Check setup on initial load
   }, [])
+
+  const handlePendingSyncClick = async () => {
+    if (!writeUrl || isWriteSyncing || (stats?.pendingSync ?? 0) === 0) return
+    await writeSync(writeUrl)
+    await loadData() // Refresh stats after sync
+  }
 
   const handleDeleteEncounter = async (id: string) => {
     try {
@@ -91,6 +81,22 @@ export function Dashboard({onNavigate, onManualEntry, onScanWithCamera}: Dashboa
     } catch (error) {
       console.error('Failed to delete encounter:', error)
     }
+  }
+
+  const handleUseSharedDatabase = async () => {
+    if (DEFAULT_SHEET_URL && DEFAULT_WRITE_URL) {
+      const settings = await getSettings()
+      await saveSettings({
+        ...settings,
+        sheetUrl: DEFAULT_SHEET_URL,
+        writeUrl: DEFAULT_WRITE_URL
+      })
+      setWriteUrl(DEFAULT_WRITE_URL)
+    }
+  }
+
+  const handleGoToSettings = () => {
+    onNavigate('settings')
   }
 
   if (loading) {
@@ -121,6 +127,14 @@ export function Dashboard({onNavigate, onManualEntry, onScanWithCamera}: Dashboa
         <p className="text-xs text-base-content/40 mt-1">
           Scan and track license plates to keep your neighborhood safe
         </p>
+        {!writeUrl && (
+          <button
+            onClick={() => setShowSetupModal(true)}
+            className="text-xs text-primary mt-2 hover:underline"
+          >
+            New here? Get set up →
+          </button>
+        )}
       </div>
 
       {/* Big Scan Button - opens camera directly on mobile, navigates to scan page on desktop */}
@@ -154,27 +168,49 @@ export function Dashboard({onNavigate, onManualEntry, onScanWithCamera}: Dashboa
         Closer and head-on = better reads
       </p>
 
-      {/* Manual Entry Option */}
-      <button
-        onClick={onManualEntry}
-        className="btn btn-ghost btn-sm w-full mt-2 gap-2 text-base-content/70"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-          className="w-4 h-4"
+      {/* Secondary Actions */}
+      <div className="flex gap-2 mt-2">
+        <button
+          onClick={onUploadPhoto}
+          className="btn btn-ghost btn-sm flex-1 gap-2 text-base-content/70"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
-          />
-        </svg>
-        Enter plate manually
-      </button>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="w-4 h-4"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
+            />
+          </svg>
+          Upload photo
+        </button>
+        <button
+          onClick={onManualEntry}
+          className="btn btn-ghost btn-sm flex-1 gap-2 text-base-content/70"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="w-4 h-4"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
+            />
+          </svg>
+          Enter manually
+        </button>
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-3 mt-6">
@@ -188,13 +224,22 @@ export function Dashboard({onNavigate, onManualEntry, onScanWithCamera}: Dashboa
           </div>
           <div className="stat-desc text-xs">Scans This Week</div>
         </div>
-        <div className="stat bg-base-100 rounded-box p-3 text-center shadow-md border border-base-300">
+        <div
+          className={`stat bg-base-100 rounded-box p-3 text-center shadow-md border border-base-300 ${(stats?.pendingSync ?? 0) > 0 && writeUrl ? 'cursor-pointer hover:bg-base-200 active:scale-95 transition-all' : ''}`}
+          onClick={handlePendingSyncClick}
+        >
           <div
             className={`stat-value text-2xl ${(stats?.pendingSync ?? 0) > 0 ? 'text-warning' : ''}`}
           >
-            {stats?.pendingSync ?? 0}
+            {isWriteSyncing ? (
+              <span className="loading loading-spinner loading-sm"></span>
+            ) : (
+              stats?.pendingSync ?? 0
+            )}
           </div>
-          <div className="stat-desc text-xs">Pending Uploads</div>
+          <div className="stat-desc text-xs">
+            {isWriteSyncing ? 'Syncing...' : (stats?.pendingSync ?? 0) > 0 && writeUrl ? 'Tap to Upload' : 'Pending Uploads'}
+          </div>
         </div>
       </div>
 
@@ -263,49 +308,17 @@ export function Dashboard({onNavigate, onManualEntry, onScanWithCamera}: Dashboa
           </div>
         ) : (
           <div className="space-y-2">
-            {recentEncounters.map((encounter) => {
-              const exp = encounter.plateExperience || encounter.experience
-              const borderColor = exp === 'good' ? 'border-l-success' : exp === 'bad' ? 'border-l-error' : 'border-l-warning'
-              return (
-              <div
+            {recentEncounters.map((encounter) => (
+              <EncounterItem
                 key={encounter.id}
-                className={`flex items-center gap-3 p-3 bg-base-100 rounded-lg cursor-pointer hover:bg-base-200 transition-colors shadow-md border border-base-300 border-l-4 ${borderColor}`}
+                encounter={{
+                  ...encounter,
+                  experience: encounter.plateExperience || encounter.experience,
+                }}
                 onClick={() => setSelectedEncounter(encounter)}
-              >
-                <ExperienceDot
-                  experience={exp}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-sm">
-                      {encounter.plateCode}
-                    </span>
-                    {encounter.plateName && (
-                      <span className="text-xs text-base-content/60 truncate">
-                        {encounter.plateName}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-base-content/50">
-                    {formatRelativeTime(encounter.timestamp)}
-                  </div>
-                </div>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                  className="w-4 h-4 text-base-content/40"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="m8.25 4.5 7.5 7.5-7.5 7.5"
-                  />
-                </svg>
-              </div>
-            )})}
+                showRelativeTime={true}
+              />
+            ))}
           </div>
         )}
 
@@ -358,6 +371,14 @@ export function Dashboard({onNavigate, onManualEntry, onScanWithCamera}: Dashboa
         onClose={() => setSelectedEncounter(null)}
         onUpdate={loadData}
         onDelete={handleDeleteEncounter}
+      />
+
+      {/* Setup Modal for first-time users */}
+      <SetupModal
+        isOpen={showSetupModal}
+        onClose={() => setShowSetupModal(false)}
+        onUseSharedDatabase={handleUseSharedDatabase}
+        onGoToSettings={handleGoToSettings}
       />
     </div>
   )
