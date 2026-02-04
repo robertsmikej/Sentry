@@ -8,6 +8,12 @@
   <strong>Protect what matters</strong> — A privacy-focused license plate tracking app that works offline and keeps your data under your control.
 </p>
 
+<p align="center">
+  <a href="https://app.netlify.com/start/deploy?repository=https://github.com/robertsmikej/plate-reader">
+    <img src="https://www.netlify.com/img/deploy/button.svg" alt="Deploy to Netlify">
+  </a>
+</p>
+
 Sentry helps you quickly identify and track license plates using your phone's camera or photo library. Whether you're monitoring vehicles entering your neighborhood, tracking visitors to your property, or keeping records for security purposes, Sentry gives you the tools you need while completely respecting your privacy.
 <br><br>
 
