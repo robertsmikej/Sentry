@@ -15,6 +15,16 @@ type Tab = 'home' | 'scan' | 'plates' | 'encounters' | 'settings';
 
 const THEME_STORAGE_KEY = 'plate-reader-theme';
 const DRAWER_ID = 'main-drawer';
+const VALID_TABS: Tab[] = ['home', 'scan', 'plates', 'encounters', 'settings'];
+
+// Get initial tab from URL hash
+function getInitialTab(): Tab {
+  const hash = window.location.hash.slice(1); // Remove the '#'
+  if (VALID_TABS.includes(hash as Tab)) {
+    return hash as Tab;
+  }
+  return 'home';
+}
 
 // Detect if device likely has a camera (mobile/tablet)
 function isMobileDevice(): boolean {
@@ -23,7 +33,7 @@ function isMobileDevice(): boolean {
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('home');
+  const [activeTab, setActiveTab] = useState<Tab>(getInitialTab);
   const [autoSyncMessage, setAutoSyncMessage] = useState<string | null>(null);
   const [startWithManualEntry, setStartWithManualEntry] = useState(false);
   const [startWithCamera, setStartWithCamera] = useState(false);
@@ -91,6 +101,36 @@ function App() {
   }, [isDarkMode]);
 
   const mainContentRef = useRef<HTMLElement>(null);
+
+  // History API navigation for native back/forward support (including iOS edge swipe)
+  const isHistoryNavigation = useRef(false);
+
+  // Push to history when tab changes (unless it's from popstate)
+  useEffect(() => {
+    if (isHistoryNavigation.current) {
+      isHistoryNavigation.current = false;
+      return;
+    }
+    // Push new state to history
+    window.history.pushState({ tab: activeTab }, '', `#${activeTab}`);
+  }, [activeTab]);
+
+  // Listen for popstate (back/forward navigation)
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state?.tab) {
+        isHistoryNavigation.current = true;
+        setActiveTab(event.state.tab as Tab);
+        mainContentRef.current?.scrollTo({ top: 0 });
+      }
+    };
+
+    // Initialize history state on mount
+    window.history.replaceState({ tab: activeTab }, '', `#${activeTab}`);
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const closeDrawer = () => {
     const checkbox = document.getElementById(DRAWER_ID) as HTMLInputElement;
@@ -184,7 +224,10 @@ function App() {
         </div>
 
         {/* Main Content */}
-        <main ref={mainContentRef} className="flex-1 overflow-auto">
+        <main
+          ref={mainContentRef}
+          className="flex-1 overflow-auto"
+        >
           {activeTab === 'home' && (
             <Dashboard
               onNavigate={(tab) => {
