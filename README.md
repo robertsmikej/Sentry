@@ -9,6 +9,11 @@
 </p>
 
 <p align="center">
+  <strong>Want your own private instance?</strong><br>
+  Click below to deploy your own copy — no coding required, free hosting included.
+</p>
+
+<p align="center">
   <a href="https://app.netlify.com/start/deploy?repository=https://github.com/robertsmikej/plate-reader">
     <img src="https://www.netlify.com/img/deploy/button.svg" alt="Deploy to Netlify">
   </a>
