@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLookup } from '../hooks/useLookup';
-import { getSettings, saveSettings } from '../services/storage';
+import {
+  getSettings,
+  saveSettings,
+  exportPlatesToCSV,
+  exportEncountersToCSV,
+  downloadCSV,
+} from '../services/storage';
 import { APPS_SCRIPT_CODE } from '../services/writeSync';
 import { ShareModal } from './ShareModal';
 import {
@@ -46,6 +52,9 @@ export function Settings() {
 
   // Share Modal
   const [showShareModal, setShowShareModal] = useState(false);
+
+  // Export state
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
 
   const {
     entries,
@@ -515,6 +524,56 @@ export function Settings() {
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
       />
+
+      {/* Export Data Card */}
+      <div className="card bg-base-200">
+        <div className="card-body">
+          <h3 className="card-title text-base">Export Data</h3>
+          <p className="text-sm text-base-content/60">
+            Download your plates and encounters as CSV files for backup or import into other apps.
+          </p>
+
+          {exportStatus && (
+            <div className="alert alert-success py-2 text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+              </svg>
+              {exportStatus}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2 mt-2">
+            <button
+              onClick={async () => {
+                const csv = await exportPlatesToCSV();
+                downloadCSV(csv, `sentry-plates-${new Date().toISOString().split('T')[0]}.csv`);
+                setExportStatus('Plates exported!');
+                setTimeout(() => setExportStatus(null), 3000);
+              }}
+              className="btn btn-outline btn-sm gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Export Plates
+            </button>
+            <button
+              onClick={async () => {
+                const csv = await exportEncountersToCSV();
+                downloadCSV(csv, `sentry-encounters-${new Date().toISOString().split('T')[0]}.csv`);
+                setExportStatus('Encounters exported!');
+                setTimeout(() => setExportStatus(null), 3000);
+              }}
+              className="btn btn-outline btn-sm gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Export Encounters
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Recognition Method Card */}
       <div className="card bg-base-200">

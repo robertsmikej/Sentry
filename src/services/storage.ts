@@ -432,3 +432,88 @@ export async function migrateScansToEncounters(): Promise<number> {
   await tx.done;
   return migratedCount;
 }
+
+// ============== EXPORT ==============
+
+// Export plates to CSV format (matches Google Sheet "Plates" tab structure)
+export async function exportPlatesToCSV(): Promise<string> {
+  const plates = await getAllLookupEntries();
+
+  // CSV header - matches Google Sheet column names exactly
+  const headers = ['code', 'name', 'description', 'seenCount', 'experience', 'lastSeen'];
+  const rows = [headers.join(',')];
+
+  for (const plate of plates) {
+    const row = [
+      escapeCSV(plate.code),
+      escapeCSV(plate.name || ''),
+      escapeCSV(plate.description || ''),
+      String(plate.seenCount || 0),
+      escapeCSV(plate.experience || 'neutral'),
+      plate.lastSeen ? new Date(plate.lastSeen).toISOString() : '',
+    ];
+    rows.push(row.join(','));
+  }
+
+  return rows.join('\n');
+}
+
+// Export encounters to CSV format (matches Google Sheet "Encounters" tab structure)
+export async function exportEncountersToCSV(): Promise<string> {
+  const encounters = await getAllEncounters();
+
+  // CSV header - matches Google Sheet column names exactly
+  const headers = ['ID', 'Plate Code', 'Timestamp', 'Date', 'Time', 'Latitude', 'Longitude', 'Accuracy (m)', 'Location Label', 'Notes', 'Tags', 'Experience', 'Scan ID'];
+  const rows = [headers.join(',')];
+
+  for (const encounter of encounters) {
+    const date = new Date(encounter.timestamp);
+    const row = [
+      escapeCSV(encounter.id),
+      escapeCSV(encounter.plateCode),
+      date.toISOString(),
+      date.toLocaleDateString(),
+      date.toLocaleTimeString(),
+      encounter.location?.latitude?.toString() || '',
+      encounter.location?.longitude?.toString() || '',
+      encounter.location?.accuracy?.toString() || '',
+      escapeCSV(encounter.locationLabel || ''),
+      escapeCSV(encounter.notes || ''),
+      escapeCSV((encounter.tags || []).join('; ')),
+      escapeCSV(encounter.experience || 'neutral'),
+      escapeCSV(encounter.scanId || ''),
+    ];
+    rows.push(row.join(','));
+  }
+
+  return rows.join('\n');
+}
+
+// Export all data (plates + encounters) to CSV
+export async function exportAllToCSV(): Promise<{ plates: string; encounters: string }> {
+  const plates = await exportPlatesToCSV();
+  const encounters = await exportEncountersToCSV();
+  return { plates, encounters };
+}
+
+// Helper function to escape CSV values
+function escapeCSV(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+// Download a CSV file
+export function downloadCSV(csvContent: string, filename: string): void {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}

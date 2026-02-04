@@ -135,6 +135,15 @@ export function Dashboard({onNavigate, onManualEntry, onScanWithCamera, onUpload
             New here? Get set up →
           </button>
         )}
+        {/* DEV: Show setup modal button - set to true to show */}
+        {true && (
+          <button
+            onClick={() => setShowSetupModal(true)}
+            className="btn btn-xs btn-outline btn-primary mt-2"
+          >
+            Show Setup Modal
+          </button>
+        )}
       </div>
 
       {/* Big Scan Button - opens camera directly on mobile, navigates to scan page on desktop */}
