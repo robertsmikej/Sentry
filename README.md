@@ -15,12 +15,14 @@
 </p>
 
 <p align="center">
-  <a href="https://app.netlify.com/start/deploy?repository=https://github.com/robertsmikej/plate-reader">
+  <a href="https://app.netlify.com/start/deploy?repository=https://github.com/robertsmikej/Sentry">
     <img src="https://www.netlify.com/img/deploy/button.svg" alt="Deploy to Netlify">
   </a>
 </p>
 
-Sentry helps you quickly identify and track license plates using your phone's camera or photo library. Whether you're monitoring vehicles entering your neighborhood, tracking visitors to your property, or keeping records for security purposes, Sentry gives you the tools you need while completely respecting your privacy.
+Sentry is a free, open-source **license plate scanner and tracker app** for iOS, Android, and desktop. Use your phone's camera to scan plates instantly, import photos, or enter plates manually. Features **automatic license plate recognition** (ALPR) using local OCR or Gemini AI, full **offline support**, and complete privacy — your data stays on your device or syncs to your own Google Sheet.
+
+Perfect for **neighborhood watch**, property security, parking management, HOA enforcement, or personal vehicle tracking.
 <br><br>
 
 ## Features
@@ -243,8 +245,8 @@ src/
 
 ```bash
 # Clone the repository
-git clone https://github.com/robertsmikej/plate-reader.git
-cd plate-reader
+git clone https://github.com/robertsmikej/Sentry.git
+cd Sentry
 
 # Install dependencies
 npm install
