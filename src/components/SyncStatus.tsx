@@ -1,7 +1,18 @@
+import { useState, useEffect } from 'react';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { getSettings } from '../services/storage';
 
 export function SyncStatus() {
   const isOnline = useOnlineStatus();
+  const [hasSyncConfigured, setHasSyncConfigured] = useState(false);
+
+  useEffect(() => {
+    const checkSettings = async () => {
+      const settings = await getSettings();
+      setHasSyncConfigured(!!settings?.sheetUrl && !!settings?.writeUrl);
+    };
+    checkSettings();
+  }, []);
 
   return (
     <div
@@ -16,9 +27,17 @@ export function SyncStatus() {
       ></span>
       <span className="leading-tight whitespace-nowrap">
         {isOnline ? (
-          <>Online<span className="opacity-70"> • </span>Auto‑sync on</>
+          hasSyncConfigured ? (
+            <>Online<span className="opacity-70"> • </span>Auto‑sync on</>
+          ) : (
+            <>Online</>
+          )
         ) : (
-          <>Offline<span className="opacity-70"> • </span>Sync queued</>
+          hasSyncConfigured ? (
+            <>Offline<span className="opacity-70"> • </span>Sync queued</>
+          ) : (
+            <>Offline</>
+          )
         )}
       </span>
     </div>

@@ -183,7 +183,7 @@ function App() {
         )}
 
         {/* Header */}
-        <header className="navbar px-4 shadow-md sticky top-0 z-40 text-white border-b border-[#0099cc]" style={{backgroundColor: '#01B2F0'}}>
+        <header className="navbar px-3 shadow-md sticky top-0 z-40 text-white border-b border-[#0099cc]" style={{backgroundColor: '#01B2F0'}}>
           <div className="flex-none">
             <label htmlFor={DRAWER_ID} className="btn btn-ghost btn-circle btn-sm drawer-button text-white hover:bg-white/20">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">

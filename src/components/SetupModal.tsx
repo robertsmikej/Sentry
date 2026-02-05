@@ -34,12 +34,23 @@ export function SetupModal({ isOpen, onClose, onUseSharedDatabase, onGoToSetting
 
   return (
     <dialog className="modal modal-open">
-      <div className="modal-box max-w-md">
+      <div className="modal-box max-w-md relative">
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="btn btn-ghost btn-sm btn-circle absolute right-2 top-2"
+          aria-label="Close"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
+
         {step === 'welcome' && (
           <>
-            <h3 className="font-bold text-xl mb-2">Welcome to Sentry!</h3>
+            <h3 className="font-bold text-xl mb-2 pr-8">Welcome to Sentry!</h3>
             <p className="text-base-content/70 mb-4">
-              Sentry helps you scan and track license plates. Before you start, let's get you set up.
+              Sentry helps you scan and track license plates to keep your neighborhood safe. Before you start, let's get you set up.
             </p>
 
             <div className="bg-base-200 rounded-lg p-4 mb-4">
