@@ -136,7 +136,7 @@ export function Dashboard({onNavigate, onManualEntry, onScanWithCamera, onUpload
           </button>
         )}
         {/* DEV: Show setup modal button - set to true to show */}
-        {true && (
+        {false && (
           <button
             onClick={() => setShowSetupModal(true)}
             className="btn btn-xs btn-outline btn-primary mt-2"
@@ -222,23 +222,23 @@ export function Dashboard({onNavigate, onManualEntry, onScanWithCamera, onUpload
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-3 mt-6">
-        <div className="stat bg-base-100 rounded-box p-3 text-center shadow-md border border-base-300">
-          <div className="stat-value text-2xl">{stats?.totalPlates ?? 0}</div>
-          <div className="stat-desc text-xs">Plates In Data</div>
+      <div className="grid grid-cols-3 gap-2 mt-6">
+        <div className="stat bg-base-100 rounded-box p-2 text-center shadow-md border border-base-300 overflow-hidden">
+          <div className="stat-value text-xl">{stats?.totalPlates ?? 0}</div>
+          <div className="stat-desc text-[0.65rem] leading-tight whitespace-normal break-words">Plates In Data</div>
         </div>
-        <div className="stat bg-base-100 rounded-box p-3 text-center shadow-md border border-base-300">
-          <div className="stat-value text-2xl">
+        <div className="stat bg-base-100 rounded-box p-2 text-center shadow-md border border-base-300 overflow-hidden">
+          <div className="stat-value text-xl">
             {stats?.encountersThisWeek ?? 0}
           </div>
-          <div className="stat-desc text-xs">Scans This Week</div>
+          <div className="stat-desc text-[0.65rem] leading-tight whitespace-normal break-words">Scans This Week</div>
         </div>
         <div
-          className={`stat bg-base-100 rounded-box p-3 text-center shadow-md border border-base-300 ${(stats?.pendingSync ?? 0) > 0 && writeUrl ? 'cursor-pointer hover:bg-base-200 active:scale-95 transition-all' : ''}`}
+          className={`stat bg-base-100 rounded-box p-2 text-center shadow-md border border-base-300 overflow-hidden ${(stats?.pendingSync ?? 0) > 0 && writeUrl ? 'cursor-pointer hover:bg-base-200 active:scale-95 transition-all' : ''}`}
           onClick={handlePendingSyncClick}
         >
           <div
-            className={`stat-value text-2xl ${(stats?.pendingSync ?? 0) > 0 ? 'text-warning' : ''}`}
+            className={`stat-value text-xl ${(stats?.pendingSync ?? 0) > 0 ? 'text-warning' : ''}`}
           >
             {isWriteSyncing ? (
               <span className="loading loading-spinner loading-sm"></span>
@@ -246,7 +246,7 @@ export function Dashboard({onNavigate, onManualEntry, onScanWithCamera, onUpload
               stats?.pendingSync ?? 0
             )}
           </div>
-          <div className="stat-desc text-xs">
+          <div className="stat-desc text-[0.65rem] leading-tight whitespace-normal break-words">
             {isWriteSyncing ? 'Syncing...' : (stats?.pendingSync ?? 0) > 0 && writeUrl ? 'Tap to Upload' : 'Pending Uploads'}
           </div>
         </div>

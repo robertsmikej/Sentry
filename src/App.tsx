@@ -14,8 +14,10 @@ import { APP_NAME, APP_TAGLINE } from './constants/app';
 type Tab = 'home' | 'scan' | 'plates' | 'encounters' | 'settings';
 
 const THEME_STORAGE_KEY = 'plate-reader-theme';
+const BANNER_DISMISSED_KEY = 'plate-reader-banner-dismissed';
 const DRAWER_ID = 'main-drawer';
 const VALID_TABS: Tab[] = ['home', 'scan', 'plates', 'encounters', 'settings'];
+const GITHUB_URL = 'https://github.com/robertsmikej/Sentry';
 
 // Get initial tab from URL hash
 function getInitialTab(): Tab {
@@ -43,6 +45,14 @@ function App() {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
     return stored === 'dark';
   });
+  const [bannerDismissed, setBannerDismissed] = useState<boolean>(() => {
+    return localStorage.getItem(BANNER_DISMISSED_KEY) === 'true';
+  });
+
+  const dismissBanner = () => {
+    setBannerDismissed(true);
+    localStorage.setItem(BANNER_DISMISSED_KEY, 'true');
+  };
 
   // Join modal state (for shared database links)
   const [joinConfig, setJoinConfig] = useState<ShareableConfig | null>(null);
@@ -111,8 +121,9 @@ function App() {
       isHistoryNavigation.current = false;
       return;
     }
-    // Push new state to history
-    window.history.pushState({ tab: activeTab }, '', `#${activeTab}`);
+    // Push new state to history - keep URL clean for home tab
+    const url = activeTab === 'home' ? window.location.pathname : `#${activeTab}`;
+    window.history.pushState({ tab: activeTab }, '', url);
   }, [activeTab]);
 
   // Listen for popstate (back/forward navigation)
@@ -125,8 +136,9 @@ function App() {
       }
     };
 
-    // Initialize history state on mount
-    window.history.replaceState({ tab: activeTab }, '', `#${activeTab}`);
+    // Initialize history state on mount - keep URL clean for home tab
+    const initialUrl = activeTab === 'home' ? window.location.pathname : `#${activeTab}`;
+    window.history.replaceState({ tab: activeTab }, '', initialUrl);
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -153,6 +165,23 @@ function App() {
 
       {/* Main Page Content */}
       <div className="drawer-content flex flex-col min-h-screen">
+        {/* Self-host Banner */}
+        {!bannerDismissed && (
+          <div className="text-white text-xs py-1 px-3 flex items-center justify-between" style={{ backgroundColor: '#132F45' }}>
+            <span className="flex-1 text-center">
+              Self-host this app free —{' '}
+              <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="underline hover:text-white/80">
+                GitHub
+              </a>
+            </span>
+            <button onClick={dismissBanner} className="btn btn-ghost btn-xs btn-circle p-0 min-h-0 h-5 w-5 text-white hover:bg-white/20" aria-label="Dismiss">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <header className="navbar px-4 shadow-md sticky top-0 z-40 text-white border-b border-[#0099cc]" style={{backgroundColor: '#01B2F0'}}>
           <div className="flex-none">
