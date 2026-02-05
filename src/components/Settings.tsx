@@ -1217,6 +1217,45 @@ export function Settings() {
         </div>
       </div>
 
+      {/* Responsible Use */}
+      <div className="card bg-base-200">
+        <div className="card-body">
+          <h3 className="card-title text-base">Responsible Use</h3>
+          <div className="text-sm text-base-content/70 space-y-3">
+            <p>
+              {APP_NAME} is a tool to help communities stay aware of vehicle activity. Please use it responsibly:
+            </p>
+            <ul className="list-disc list-inside ml-2 space-y-2">
+              <li><strong>Never confront</strong> individuals based on plate data - report genuine concerns to local authorities</li>
+              <li><strong>Verify information</strong> independently - flags and notes are user-submitted and may be inaccurate</li>
+              <li><strong>Respect privacy</strong> - don't use this tool to track, stalk, or harass individuals</li>
+              <li><strong>Share responsibly</strong> - only give database access to people you trust</li>
+            </ul>
+            <div className="alert alert-info text-xs mt-3">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span>This app is not a substitute for law enforcement. If you witness a crime or emergency, call 911.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Legal */}
+      <div className="card bg-base-200">
+        <div className="card-body">
+          <h3 className="card-title text-base">Legal</h3>
+          <div className="flex flex-wrap gap-2">
+            <a href="#privacy" onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('openPrivacyPolicy')); }} className="btn btn-outline btn-sm">
+              Privacy Policy
+            </a>
+            <a href="#terms" onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('openTermsOfUse')); }} className="btn btn-outline btn-sm">
+              Terms of Use
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* About */}
       <div className="card bg-base-200">
         <div className="card-body">

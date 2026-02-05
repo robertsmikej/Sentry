@@ -104,6 +104,12 @@ export function SetupModal({ isOpen, onClose, onUseSharedDatabase, onGoToSetting
                       <span className="badge badge-primary badge-sm mt-2">Recommended for quick start</span>
                     </div>
                   </div>
+                  <div className="alert alert-warning text-xs mt-3 py-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 shrink-0">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                    </svg>
+                    <span>Anyone with access can add plates and flags. Only share with people you trust, and always verify information independently.</span>
+                  </div>
                   <button onClick={handleUseShared} className="btn btn-primary btn-sm mt-3">
                     Use Our Shared Database
                   </button>

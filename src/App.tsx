@@ -6,6 +6,8 @@ import { EncounterList } from './components/EncounterList';
 import { PlateList } from './components/PlateList';
 import { SyncStatus } from './components/SyncStatus';
 import { JoinModal } from './components/JoinModal';
+import { PrivacyPolicy } from './components/PrivacyPolicy';
+import { TermsOfUse } from './components/TermsOfUse';
 import { useAutoSync } from './hooks/useAutoSync';
 import { useOfflinePrep } from './hooks/useOfflinePrep';
 import { getJoinConfigFromUrl, type ShareableConfig } from './services/sharing';
@@ -58,6 +60,10 @@ function App() {
   const [joinConfig, setJoinConfig] = useState<ShareableConfig | null>(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
 
+  // Legal modals state
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTermsOfUse, setShowTermsOfUse] = useState(false);
+
   // Check for join URL on mount
   useEffect(() => {
     const config = getJoinConfigFromUrl();
@@ -65,6 +71,20 @@ function App() {
       setJoinConfig(config);
       setShowJoinModal(true);
     }
+  }, []);
+
+  // Listen for legal modal events from Settings
+  useEffect(() => {
+    const handleOpenPrivacy = () => setShowPrivacyPolicy(true);
+    const handleOpenTerms = () => setShowTermsOfUse(true);
+
+    window.addEventListener('openPrivacyPolicy', handleOpenPrivacy);
+    window.addEventListener('openTermsOfUse', handleOpenTerms);
+
+    return () => {
+      window.removeEventListener('openPrivacyPolicy', handleOpenPrivacy);
+      window.removeEventListener('openTermsOfUse', handleOpenTerms);
+    };
   }, []);
 
   const handleJoinComplete = useCallback(() => {
@@ -319,6 +339,16 @@ function App() {
             onJoined={handleJoinComplete}
           />
         )}
+
+        {/* Legal Modals */}
+        <PrivacyPolicy
+          isOpen={showPrivacyPolicy}
+          onClose={() => setShowPrivacyPolicy(false)}
+        />
+        <TermsOfUse
+          isOpen={showTermsOfUse}
+          onClose={() => setShowTermsOfUse(false)}
+        />
       </div>
 
       {/* Slide-out Drawer */}
