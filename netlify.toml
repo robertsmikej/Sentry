@@ -1,6 +1,9 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  # Only build when app-related files change (saves build credits)
+  # Skips builds for README, LICENSE, docs, etc.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- src/ public/ index.html package.json package-lock.json vite.config.ts tailwind.config.* tsconfig.json postcss.config.*"
 
 # Handle SPA routing - redirect all requests to index.html
 [[redirects]]
