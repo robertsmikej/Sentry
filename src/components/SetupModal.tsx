@@ -86,15 +86,15 @@ export function SetupModal({ isOpen, onClose, onUseSharedDatabase, onGoToSetting
                       </svg>
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-semibold">Use Shared Community Database</h4>
+                      <h4 className="font-semibold">Use Our Shared Community Database</h4>
                       <p className="text-sm text-base-content/60 mt-1">
-                        Join a shared database with other users. Your scans contribute to a community watchlist. Great for neighborhoods!
+                        Join our shared Google Sheet with other users. Your scans contribute to a community watchlist with more plates to match against. Great for neighborhoods!
                       </p>
                       <span className="badge badge-primary badge-sm mt-2">Recommended for quick start</span>
                     </div>
                   </div>
                   <button onClick={handleUseShared} className="btn btn-primary btn-sm mt-3">
-                    Use Shared Database
+                    Use Our Shared Database
                   </button>
                 </div>
               </div>
@@ -112,7 +112,7 @@ export function SetupModal({ isOpen, onClose, onUseSharedDatabase, onGoToSetting
                   <div className="flex-1">
                     <h4 className="font-semibold">Set Up Your Own Database</h4>
                     <p className="text-sm text-base-content/60 mt-1">
-                      Create your own private Google Sheet. You control your data completely.
+                      Create your own private Google Sheet. You can share it with neighbors, but it's more work to set up and you'll start with fewer plates to match against.
                     </p>
                   </div>
                 </div>
@@ -150,7 +150,7 @@ export function SetupModal({ isOpen, onClose, onUseSharedDatabase, onGoToSetting
                   <span className="font-mono bg-base-300 px-2 py-0.5 rounded text-xs">Default</span>
                   <div>
                     <strong>Local OCR</strong>
-                    <p className="text-base-content/60">Works offline, good for clear plates. No setup needed.</p>
+                    <p className="text-base-content/60">Works offline, good for clear plate photos. No setup needed.</p>
                   </div>
                 </div>
 
@@ -158,7 +158,7 @@ export function SetupModal({ isOpen, onClose, onUseSharedDatabase, onGoToSetting
                   <span className="font-mono bg-primary/20 text-primary px-2 py-0.5 rounded text-xs">Better</span>
                   <div>
                     <strong>Gemini AI</strong>
-                    <p className="text-base-content/60">Much better accuracy, especially for angled or blurry plates. Requires free API key from Google.</p>
+                    <p className="text-base-content/60">Much better accuracy, especially for angled or blurry plates. Requires free API key from Google and to be online.</p>
                   </div>
                 </div>
               </div>

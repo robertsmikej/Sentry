@@ -742,9 +742,9 @@ export function Settings() {
                   step="256"
                   value={recognitionSettings.geminiMaxImageSize}
                   onChange={(e) => updateGeminiMaxImageSize(parseInt(e.target.value, 10))}
-                  className="range range-primary range-sm"
+                  className="range range-primary range-sm ml-2"
                 />
-                <div className="flex justify-between text-xs text-base-content/50 px-1 mt-1">
+                <div className="flex justify-between text-xs text-base-content/50 px-1 mt-1 ml-2">
                   <span>512</span>
                   <span>1536</span>
                   <span>2560</span>
@@ -786,21 +786,21 @@ export function Settings() {
 
               {/* Auto-Scan Toggle */}
               <div className="form-control">
-                <label className="label cursor-pointer justify-start gap-3 items-start flex-wrap whitespace-normal">
+                <label className="label">
+                  <span className="label-text font-medium">Auto-scan images</span>
+                </label>
+                <label className="label cursor-pointer justify-start gap-3">
                   <input
                     type="checkbox"
                     checked={recognitionSettings.geminiAutoScan}
                     onChange={(e) => updateGeminiAutoScan(e.target.checked)}
                     className="toggle toggle-primary"
                   />
-                  <div className="min-w-0">
-                    <span className="label-text font-medium">Auto-scan images</span>
-                    <p className="text-xs text-base-content/50 mt-0.5 break-words">
-                      {recognitionSettings.geminiAutoScan
-                        ? 'Images are sent to AI immediately after capture'
-                        : 'Preview image first with option to crop before scanning'}
-                    </p>
-                  </div>
+                  <span className="label-text text-base-content/70">
+                    {recognitionSettings.geminiAutoScan
+                      ? 'Images are sent to AI immediately after capture'
+                      : 'Preview image first with option to crop before scanning'}
+                  </span>
                 </label>
               </div>
 
@@ -929,19 +929,19 @@ export function Settings() {
 
           {/* Preprocess Toggle */}
           <div className="form-control">
-            <label className="label cursor-pointer justify-start gap-3 items-start flex-wrap whitespace-normal">
+            <label className="label">
+              <span className="label-text font-medium">Preprocess Image</span>
+            </label>
+            <label className="label cursor-pointer justify-start gap-3">
               <input
                 type="checkbox"
                 checked={ocrSettings.preprocessImage}
                 onChange={(e) => updateOcrSetting('preprocessImage', e.target.checked)}
                 className="checkbox checkbox-primary"
               />
-              <div className="min-w-0">
-                <span className="label-text">Preprocess Image</span>
-                <p className="text-xs text-base-content/50 break-words">
-                  Convert to grayscale and increase contrast before OCR
-                </p>
-              </div>
+              <span className="label-text text-base-content/70">
+                Convert to grayscale and increase contrast before OCR
+              </span>
             </label>
           </div>
 
@@ -1149,21 +1149,21 @@ export function Settings() {
           </p>
 
           <div className="form-control">
-            <label className="label cursor-pointer justify-start gap-3 items-start flex-wrap whitespace-normal">
+            <label className="label">
+              <span className="label-text font-medium">Enable location capture</span>
+            </label>
+            <label className="label cursor-pointer justify-start gap-3">
               <input
                 type="checkbox"
                 checked={locationEnabled}
                 onChange={(e) => setLocationEnabled(e.target.checked)}
                 className="toggle toggle-primary"
               />
-              <div className="min-w-0">
-                <span className="label-text font-medium">Enable location capture</span>
-                <p className="text-xs text-base-content/50 mt-0.5 break-words">
-                  {locationEnabled
-                    ? 'Location will be captured with each scan (requires permission)'
-                    : 'Location tracking is disabled'}
-                </p>
-              </div>
+              <span className="label-text text-base-content/70">
+                {locationEnabled
+                  ? 'Location will be captured with each scan (requires permission)'
+                  : 'Location tracking is disabled'}
+              </span>
             </label>
           </div>
 
@@ -1197,21 +1197,21 @@ export function Settings() {
           <h3 className="card-title text-base">Display Options</h3>
 
           <div className="form-control">
-            <label className="label cursor-pointer justify-start gap-3 items-start flex-wrap whitespace-normal">
+            <label className="label">
+              <span className="label-text font-medium">Show edit fields on scan results</span>
+            </label>
+            <label className="label cursor-pointer justify-start gap-3">
               <input
                 type="checkbox"
                 checked={showEditFields}
                 onChange={(e) => setShowEditFields(e.target.checked)}
                 className="toggle toggle-primary"
               />
-              <div className="min-w-0">
-                <span className="label-text font-medium">Show edit fields on scan results</span>
-                <p className="text-xs text-base-content/50 mt-0.5 break-words">
-                  {showEditFields
-                    ? 'Name, notes, and experience fields are shown after scanning'
-                    : 'Only the plate number and match status are shown after scanning'}
-                </p>
-              </div>
+              <span className="label-text text-base-content/70">
+                {showEditFields
+                  ? 'Name, notes, and experience fields are shown after scanning'
+                  : 'Only the plate number and match status are shown after scanning'}
+              </span>
             </label>
           </div>
         </div>
